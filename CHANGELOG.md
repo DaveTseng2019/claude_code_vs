@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.14.0 - 2026-07-28
+
+**Screen capture — giving Claude eyes** ([`docs/VISION.md`](docs/VISION.md)). Two new `vs-debug` tools let Claude take its own screenshots instead of asking you to paste one: `vs_capture_window` (the debugged app's window; the VS window; or any window by title — the browser showing your site) and `vs_capture_screen` (one monitor or all). Gated behind a new **Allow screen capture** panel toggle — default off, in-memory, resets each session, and it gates *every* target, since a title-addressed capture can already see anything on the desktop.
+
+### Features
+
+- **Capture core**: `PrintWindow` with `PW_RENDERFULLCONTENT` (renders occluded/DWM-composed windows), with a blank-frame fallback — bring the window forward, ~350 ms settle, re-read the rect, screen-region copy — proven live against hardware-accelerated browsers (Edge, VS Code).
+- **Audit trail by construction**: every capture lands in the attachment tray as a visible chip (with its token estimate) plus a `capture:` activity-feed line, and the tool returns the staged PNG's **path** for a native-cost Read — never MCP image blocks (Claude Code counts those as text at ~10–20× the tokens, upstream #31208).
+- **Failure modes that steer**: an unmatched title returns the list of capturable windows (same eligibility filter as the matcher — DWM-cloaked shell ghosts excluded, minimized windows suffixed `(minimized)`); a matched-but-minimized window gets a restore-first error instead of a capture of its ~136×39 taskbar-preview proxy (filtered by a minimum-size floor); a windowless web debuggee is pointed at the browser-by-title flow; a bogus `pid` returns the real debugged-pid list.
+
+### Fixes
+
+- **Non-ASCII in every MCP tool result arrived as mojibake** (`Microsoft™ Edge` → `Microsoftâ„¢ Edge`): the bridge's HTTP responses declared no charset, so the PowerShell 5.1 shim decoded UTF-8 as Latin-1. Fixed on both ends — responses now declare `charset=utf-8`, and the shim decodes raw response bytes as UTF-8 itself. Affects all `vs-debug` / `vs-semantic` output, not just window titles; the updated shim ships on the next panel Launch.
+- **The panel's toggles now sit on their own wrapping row** — four checkboxes stopped fitting beside the buttons at docked width and were invisible until the panel was widened.
+
 ## 1.13.0 - 2026-07-22
 
 **Native terminal launch** — "Launch Claude Code" now opens `claude` inside VS's own docked Terminal tool window (the engine behind `View > Terminal`) instead of a separate `cmd.exe` console, so the CLI lives inside the IDE window like Developer PowerShell does.

@@ -1,6 +1,6 @@
 # Getting started
 
-The practical setup: install the extension, launch Claude connected to Visual Studio, and learn the panel and the two safety toggles. For what the tools actually do once you are connected, see [`DEBUGGER.md`](DEBUGGER.md), [`TESTING.md`](TESTING.md), and [`SEMANTIC.md`](SEMANTIC.md).
+The practical setup: install the extension, launch Claude connected to Visual Studio, and learn the panel and the safety toggles. For what the tools actually do once you are connected, see [`DEBUGGER.md`](DEBUGGER.md), [`TESTING.md`](TESTING.md), [`SEMANTIC.md`](SEMANTIC.md), and [`VISION.md`](VISION.md).
 
 **Jump to:** [Requirements](#requirements) · [Install](#install) · [First launch](#first-launch) · [The panel](#the-panel) · [The diff gate](#the-diff-gate) · [Auto-accept](#run-wild-auto-accept) · [Attachments](#attachments-screenshots-and-files) · [Notifications](#notifications) · [Let Claude debug](#letting-claude-debug) · [Troubleshooting](#troubleshooting)
 
@@ -41,7 +41,7 @@ The dockable Claude Code panel is your status and control surface.
 It shows:
 
 - **Connection.** The green **Connected** pill, the bridge port, and the workspace folder the CLI is bound to.
-- **The two safety toggles.** **Auto-accept (run wild)** and **Allow Claude to drive debugger**, both off by default and both reset each session. More on each below.
+- **The three safety toggles.** **Auto-accept (run wild)**, **Allow Claude to drive debugger**, and **Allow screen capture** (lets Claude screenshot the debugged app's window, a window by title, or the screen - see [`VISION.md`](VISION.md)), all off by default and all reset each session. They sit on their own row under the buttons, each with a what-it-does tooltip.
 - **The Notify toggle.** Mutes the in-IDE notifications ("Claude finished responding" / "Claude needs your input"). On by default, since it is a convenience rather than a safety gate. More below.
 - **Edit decisions.** How many edits you accepted and rejected this session.
 - **Debugger activity.** How many reads Claude made and how many drive commands it issued.

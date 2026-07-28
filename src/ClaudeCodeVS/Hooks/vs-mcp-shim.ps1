@@ -61,13 +61,18 @@ function Resolve-Bridge {
 }
 
 # Forward one JSON-RPC message to the bridge; return the (possibly empty) reply body. Throws on transport
-# failure so the caller can re-discover and retry.
+# failure so the caller can re-discover and retry. Decode the reply from RAW BYTES as UTF-8 ourselves:
+# PS 5.1's $resp.Content pre-decodes with the response charset, or Latin-1 when none is declared, which
+# mangles any non-ASCII in tool output (e.g. a window title's Unicode) into mojibake.
 function Send-ToBridge([string]$json) {
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
     $resp = Invoke-WebRequest -Uri "http://127.0.0.1:$($script:Port)$Route" -Method Post `
         -ContentType 'application/json; charset=utf-8' `
         -Headers @{ 'x-claude-code-ide-authorization' = $script:Token } `
         -Body $bytes -TimeoutSec 60 -UseBasicParsing
+    if ($resp.RawContentStream) {
+        return [System.Text.Encoding]::UTF8.GetString($resp.RawContentStream.ToArray())
+    }
     return [string]$resp.Content
 }
 

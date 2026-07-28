@@ -104,6 +104,23 @@ internal static class BridgeStatus
     }
 
     /// <summary>
+    /// Allow Claude to CAPTURE pixels via the vs_capture_* tools: the debugged app's window, a window
+    /// addressed by title (e.g. the browser showing your site), or the screen. ALL of it is gated - not
+    /// just full-screen - because a title-addressed or screen capture can sweep up anything visible on
+    /// the desktop. In-memory only (resets each VS session), same safety model as
+    /// <see cref="AllowDebuggerDrive"/>. Every capture is feed-logged and staged as a visible attachment
+    /// chip, so there is always an audit trail of exactly what Claude saw.
+    /// </summary>
+    public static bool AllowScreenCapture { get; private set; }
+
+    public static void SetAllowScreenCapture(bool value)
+    {
+        if (AllowScreenCapture == value) return;
+        AllowScreenCapture = value;
+        Changed?.Invoke();
+    }
+
+    /// <summary>
     /// In-IDE notifications ("Claude finished responding" / "Claude needs your input"): the main-window
     /// InfoBar + taskbar flash the <see cref="Notifier"/> raises from the Stop and Notification hooks.
     /// Default ON - it's a convenience, not a safety gate - and in-memory like the other toggles, so the

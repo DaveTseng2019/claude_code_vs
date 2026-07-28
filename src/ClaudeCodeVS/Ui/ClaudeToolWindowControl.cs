@@ -51,6 +51,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
     private readonly TextBlock _toolsWarningText;
     private readonly CheckBox _autoAccept;
     private readonly CheckBox _allowDrive;
+    private readonly CheckBox _allowCapture;
     private readonly CheckBox _notify;
     private readonly ListBox _feed;
     private readonly WrapPanel _attachChips;
@@ -100,17 +101,22 @@ internal sealed class ClaudeToolWindowControl : UserControl
         var launchExternal = MakeButton("External console", () => { _ = BridgeStatus.LaunchExternalAction?.Invoke(); });
         launchExternal.ToolTip = "Launch Claude Code in a separate console window instead of the docked terminal. Unlike the docked tab, it survives closing Visual Studio.";
         left.Children.Add(launchExternal);
+
+        // The toggles get their own WRAPPING row: four checkboxes stopped fitting beside the buttons at
+        // a typically-docked panel width (they were simply invisible until the panel was widened), and a
+        // WrapPanel keeps every one reachable at any size. Each also carries a what-it-does tooltip.
+        var toggles = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
         _autoAccept = new CheckBox
         {
             Content = "Auto-accept (run wild)",
             ToolTip = "Apply edits without opening the diff. Resets when VS restarts.",
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(6, 0, 0, 0),
+            Margin = new Thickness(0, 0, 14, 2),
         };
         _autoAccept.Checked += (s, e) => BridgeStatus.SetAutoAcceptEdits(true);
         _autoAccept.Unchecked += (s, e) => BridgeStatus.SetAutoAcceptEdits(false);
         _autoAccept.SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey); // else label is black-on-dark
-        left.Children.Add(_autoAccept);
+        toggles.Children.Add(_autoAccept);
 
         // Phase 3 gate: lets Claude continue/step/set-breakpoints while paused. Default OFF, resets each
         // session (same in-memory safety model as auto-accept) - model-controlled execution is opt-in.
@@ -119,12 +125,27 @@ internal sealed class ClaudeToolWindowControl : UserControl
             Content = "Allow Claude to drive debugger",
             ToolTip = "Let Claude continue/step and set breakpoints while paused. Resets when VS restarts.",
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(10, 0, 0, 0),
+            Margin = new Thickness(0, 0, 14, 2),
         };
         _allowDrive.Checked += (s, e) => BridgeStatus.SetAllowDebuggerDrive(true);
         _allowDrive.Unchecked += (s, e) => BridgeStatus.SetAllowDebuggerDrive(false);
         _allowDrive.SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey);
-        left.Children.Add(_allowDrive);
+        toggles.Children.Add(_allowDrive);
+
+        // Capture gate: lets Claude screenshot the debuggee / a window by title / the screen into the
+        // attachment tray. Same in-memory opt-in model as the drive toggle - what Claude can SEE of your
+        // desktop is a safety decision, so it is never left on across sessions.
+        _allowCapture = new CheckBox
+        {
+            Content = "Allow screen capture",
+            ToolTip = "Let Claude capture the debugged app's window, a window by title (e.g. your browser), or the screen as image attachments. Every capture is logged and staged as a visible chip. Resets when VS restarts.",
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 14, 2),
+        };
+        _allowCapture.Checked += (s, e) => BridgeStatus.SetAllowScreenCapture(true);
+        _allowCapture.Unchecked += (s, e) => BridgeStatus.SetAllowScreenCapture(false);
+        _allowCapture.SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey);
+        toggles.Children.Add(_allowCapture);
 
         // Notifications: an InfoBar (+ taskbar flash when VS is in the background) when Claude finishes
         // a turn or needs input. A convenience, not a safety gate, so unlike the two above it defaults ON.
@@ -133,17 +154,22 @@ internal sealed class ClaudeToolWindowControl : UserControl
             Content = "Notify",
             ToolTip = "Show a notification bar (and flash the taskbar when VS is in the background) when Claude finishes responding or needs your input.",
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(10, 0, 0, 0),
+            Margin = new Thickness(0, 0, 14, 2),
             IsChecked = BridgeStatus.NotifyEnabled,
         };
         _notify.Checked += (s, e) => BridgeStatus.SetNotifyEnabled(true);
         _notify.Unchecked += (s, e) => BridgeStatus.SetNotifyEnabled(false);
         _notify.SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey);
-        left.Children.Add(_notify);
+        toggles.Children.Add(_notify);
 
         toolbar.Children.Add(right);
         toolbar.Children.Add(left);
-        Grid.SetRow(toolbar, 1);
+
+        var toolbarStack = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
+        toolbar.Margin = new Thickness(0);
+        toolbarStack.Children.Add(toolbar);
+        toolbarStack.Children.Add(toggles);
+        Grid.SetRow(toolbarStack, 1);
 
         // ---- Row 2: "extra tools didn't load" banner (collapsed unless the PULL MCP servers failed) ----
         // Surfaces the otherwise-silent gap where the IDE WebSocket connected but vs-debug/vs-semantic/
@@ -287,7 +313,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         Grid.SetRow(_feed, 7);
 
         root.Children.Add(header);
-        root.Children.Add(toolbar);
+        root.Children.Add(toolbarStack);
         root.Children.Add(_toolsWarningCard);
         root.Children.Add(statsCard);
         root.Children.Add(_pendingCard);
@@ -367,6 +393,8 @@ internal sealed class ClaudeToolWindowControl : UserControl
             _autoAccept.IsChecked = BridgeStatus.AutoAcceptEdits;
         if (_allowDrive.IsChecked != BridgeStatus.AllowDebuggerDrive)
             _allowDrive.IsChecked = BridgeStatus.AllowDebuggerDrive;
+        if (_allowCapture.IsChecked != BridgeStatus.AllowScreenCapture)
+            _allowCapture.IsChecked = BridgeStatus.AllowScreenCapture;
         if (_notify.IsChecked != BridgeStatus.NotifyEnabled)
             _notify.IsChecked = BridgeStatus.NotifyEnabled;
 
