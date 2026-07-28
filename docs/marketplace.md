@@ -38,6 +38,7 @@ The demand for this is on the Claude Code tracker. These requests ask for what t
 - **Selection context** - Claude automatically knows the file and lines you are looking at.
 - **Claude in the IDE's own terminal** - Launch opens `claude` inside Visual Studio's docked Terminal tool window (the same group as Developer PowerShell), already connected - it docks and tabs like any other VS terminal instead of floating over your desktop. An **External console** button keeps the standalone-window option. Full reference: [the quality-of-life guide](https://github.com/firish/claude_code_vs/blob/main/docs/QOL.md#claude-in-the-ides-own-terminal).
 - **Attach screenshots and files** - the Windows CLI cannot take a pasted screenshot at all, so the panel is the paste point: Win+Shift+S, click **Paste** (or drop files from Explorer), and an `@` reference lands directly in the CLI's input box with the real image attached. Every attachment shows an estimated token cost *before* you send, Excel/video/archives attach too (Claude gets the path and reaches for a script), and staged copies live in a gitignored `.claude/attachments/`. Full reference: [the quality-of-life guide](https://github.com/firish/claude_code_vs/blob/main/docs/QOL.md#attach-a-screenshot-or-any-file).
+- **Screen capture: Claude takes its own screenshots (opt-in)** - two gated tools give Claude eyes: capture the debugged app's window, any window by title (the browser showing your site), the VS window, or the whole screen. Captures land in the attachment tray as visible chips with a token estimate, and the tool returns a path Claude reads with real vision - UI layouts, images, rendered pages, text in windows that are not files. Off by default behind an **Allow screen capture** toggle; every capture is logged. Full reference: [the vision guide](https://github.com/firish/claude_code_vs/blob/main/docs/VISION.md).
 - **Notifications** - an in-IDE heads-up when Claude finishes responding or needs your input (a permission prompt, or it went idle waiting for you): a notification bar in Visual Studio, plus a taskbar flash when VS is in the background. For working in another window while it cooks. A panel toggle mutes it. Full reference: [the quality-of-life guide](https://github.com/firish/claude_code_vs/blob/main/docs/QOL.md#notifications).
 - **Live panel** - a dockable Claude Code panel: connection status, edit decisions, and token usage with estimated cost (latest call vs cumulative session).
 
@@ -95,9 +96,17 @@ Pasting a screenshot into the Claude Code CLI on Windows silently does nothing (
 
 Every attachment shows an **estimated token cost before you send**: a tight screenshot crop costs a fraction of a full screen, and a 2 MB JSON log announcing *≈212k tokens* is your cue to ask Claude to Grep it instead of reading it whole. Formats Claude cannot read directly (Excel, video, archives) still attach - the chip is labeled, Claude gets the path, and it reaches for a script or tool on its own. Files already in your workspace are referenced in place; everything else is copied into a gitignored `.claude/attachments/`.
 
+### Claude takes its own screenshots
+
+With the **Allow screen capture** toggle on, Claude stops asking you for screenshots and takes its own: the debugged app's window, any window by title (the browser running your site), or the screen. Asked only *"in one of my monitors I have an image, a notepad, and a documentation file - screen grab that and tell me what you see"*, it captured the desktop once (≈922 tokens) and read all three: the sunflower photo described, the Notepad numbers transcribed digit-for-digit, the visible .NET 11 doc bullets summarized.
+
+![Claude's answer after one screen capture: the photo described, the Notepad list transcribed exactly, and the docs page summarized](https://raw.githubusercontent.com/firish/claude_code_vs/main/docs/images/capture_window_tool_result.png)
+
+Every capture is staged as a visible chip in the attachment tray and logged in the activity feed, so what Claude saw is never invisible to you. The full story is in [the vision guide](https://github.com/firish/claude_code_vs/blob/main/docs/VISION.md).
+
 ### A live panel
 
-A dockable Claude Code panel shows connection status, edit decisions, and token usage with an estimated cost. It also holds the two safety toggles (apply edits without the diff, and allow Claude to drive the debugger), both off by default and both reset each session, plus a **Notify** toggle (on by default) that mutes the finished/needs-input notifications.
+A dockable Claude Code panel shows connection status, edit decisions, and token usage with an estimated cost. It also holds the three safety toggles (apply edits without the diff, allow Claude to drive the debugger, and allow screen capture), all off by default and all reset each session, plus a **Notify** toggle (on by default) that mutes the finished/needs-input notifications.
 
 ![The Claude Code panel showing the connection pill, the debugger-drive toggle, and token and cost figures](https://raw.githubusercontent.com/firish/claude_code_vs/main/docs/images/full-panel.png)
 
@@ -146,6 +155,7 @@ This is a protocol bridge, not a re-implementation of the agent. On Launch it st
 - Token stats refresh on edits, so a chat-only turn may not update them right away.
 - Cost figures are estimates, not billing.
 - Attachments: images read directly must be PNG/JPEG/GIF/WebP under 5 MB (bigger ones attach with a downscale note; BMPs are transcoded). Excel, video, archives and other binaries attach as paths for Claude's tools rather than direct reads. Attachment token figures are estimates.
+- Screen capture is opt-in per session and cannot capture minimized windows (the tool asks for a restore). Windows that block `PrintWindow` fall back to a screen-region copy, which includes anything overlapping them.
 
 ## Troubleshooting
 
