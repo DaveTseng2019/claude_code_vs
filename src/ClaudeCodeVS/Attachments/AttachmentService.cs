@@ -104,6 +104,36 @@ internal static class AttachmentService
     /// <summary>Re-send one chip's at_mentioned (e.g. the first send raced a busy CLI turn).</summary>
     public static Task ResendAsync(AttachmentItem item) => SendAsync(item, announce: true);
 
+    /// <summary>
+    /// Stage a capture the MODEL initiated (the vs_capture_* tools): saved into staging + a visible
+    /// panel chip + a feed line, but deliberately NOT at_mentioned - the tool result carries the path
+    /// (the model Reads it), so a composer chip would double-deliver. Marked Sent so the on-connect
+    /// flush never mentions it either; the user can still click the chip to @-mention it themselves.
+    /// </summary>
+    public static AttachmentItem StageCapturePng(byte[] png, string baseName)
+    {
+        var dir = EnsureStagingDir();
+        var dest = UniquePath(dir, $"{baseName}-{DateTime.Now:yyyyMMdd-HHmmss}.png");
+        File.WriteAllBytes(dest, png);
+        var item = new AttachmentItem
+        {
+            FullPath = dest,
+            MentionPath = ToWorkspaceRelative(dest) ?? dest,
+            FileName = Path.GetFileName(dest),
+            IsImage = true,
+            WasCopied = true,
+            EstTokens = EstimatePngTokens(png),
+            Sent = true, // never auto-mentioned: the capture tool's result carries the path
+        };
+        lock (Gate)
+        {
+            Items.Add(item);
+            while (Items.Count > MaxItems) Items.RemoveAt(0);
+        }
+        Changed?.Invoke();
+        return item;
+    }
+
     /// <summary>Remove one chip; staged COPIES are deleted, in-place originals are never touched.</summary>
     public static void Remove(AttachmentItem item)
     {

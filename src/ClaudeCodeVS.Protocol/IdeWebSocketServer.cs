@@ -263,7 +263,7 @@ public sealed class IdeWebSocketServer
             var json = new JObject { ["allow"] = allow, ["reason"] = reason }.ToString(Formatting.None);
             var bytes = Encoding.UTF8.GetBytes(json);
             ctx.Response.StatusCode = 200;
-            ctx.Response.ContentType = "application/json";
+            ctx.Response.ContentType = "application/json; charset=utf-8"; // no charset -> PS 5.1 clients decode as Latin-1 (mojibake)
             ctx.Response.ContentLength64 = bytes.Length;
             await ctx.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length, ct);
             ctx.Response.Close();
@@ -346,7 +346,7 @@ public sealed class IdeWebSocketServer
         {
             var bytes = Encoding.UTF8.GetBytes(json);
             ctx.Response.StatusCode = 200;
-            ctx.Response.ContentType = "application/json";
+            ctx.Response.ContentType = "application/json; charset=utf-8"; // no charset -> PS 5.1 clients decode as Latin-1 (mojibake)
             ctx.Response.ContentLength64 = bytes.Length;
             await ctx.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length, ct);
             ctx.Response.Close();
@@ -386,7 +386,7 @@ public sealed class IdeWebSocketServer
             if (response is not null)
             {
                 var bytes = Encoding.UTF8.GetBytes(response);
-                ctx.Response.ContentType = "application/json";
+                ctx.Response.ContentType = "application/json; charset=utf-8"; // no charset -> PS 5.1 clients decode as Latin-1 (mojibake)
                 ctx.Response.ContentLength64 = bytes.Length;
                 await ctx.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length, ct);
             }

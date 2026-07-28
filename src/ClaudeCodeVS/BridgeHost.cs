@@ -415,6 +415,12 @@ internal sealed class BridgeHost : IDisposable
         yield return new VsSetDataBreakpointTool(dataBp);
         yield return new VsGetDataChangesTool(dataBp);
         yield return new VsRemoveDataBreakpointTool(dataBp);
+
+        // Screen capture (gated behind BridgeStatus.AllowScreenCapture): the model takes its own
+        // screenshots - the debuggee's window, a window by title (the browser case), or the screen -
+        // staged as attachment chips, path returned for a native-cost Read.
+        yield return new VsCaptureWindowTool();
+        yield return new VsCaptureScreenTool();
     }
 
     /// <summary>

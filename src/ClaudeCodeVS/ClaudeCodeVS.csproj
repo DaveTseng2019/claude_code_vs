@@ -66,6 +66,8 @@
     <Reference Include="PresentationFramework" />
     <Reference Include="WindowsBase" />
     <Reference Include="System.Xaml" />
+    <!-- GDI capture for the vs_capture_* tools (framework assembly, ships nothing). -->
+    <Reference Include="System.Drawing" />
   </ItemGroup>
 
   <ItemGroup>
