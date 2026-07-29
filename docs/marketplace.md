@@ -98,6 +98,8 @@ Every attachment shows an **estimated token cost before you send**: a tight scre
 
 ### Claude takes its own screenshots
 
+![My monitor with three processes: A photo, A Notepad list and a docs page on Edge](https://raw.githubusercontent.com/firish/claude_code_vs/main/docs/images/capture_window_tool_test.png)
+
 With the **Allow screen capture** toggle on, Claude stops asking you for screenshots and takes its own: the debugged app's window, any window by title (the browser running your site), or the screen. Asked only *"in one of my monitors I have an image, a notepad, and a documentation file - screen grab that and tell me what you see"*, it captured the desktop once (≈922 tokens) and read all three: the sunflower photo described, the Notepad numbers transcribed digit-for-digit, the visible .NET 11 doc bullets summarized.
 
 ![Claude's answer after one screen capture: the photo described, the Notepad list transcribed exactly, and the docs page summarized](https://raw.githubusercontent.com/firish/claude_code_vs/main/docs/images/capture_window_tool_result.png)
