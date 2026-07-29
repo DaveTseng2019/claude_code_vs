@@ -94,8 +94,26 @@ internal static class VsTerminalLauncher
             }
             IServiceBroker broker = container.GetFullAccessServiceBroker();
 
-            // T = ITerminalService is only known as a reflected Type, so the generic call needs MakeGenericMethod.
-            var getProxy = typeof(IServiceBroker).GetMethod("GetProxyAsync")!.MakeGenericMethod(terminalServiceType);
+            // T = ITerminalService is only known as a reflected Type, so the generic call needs
+            // MakeGenericMethod. Overload-tolerant lookup: a bare GetMethod("GetProxyAsync") throws
+            // AmbiguousMatchException the moment a ServiceHub.Framework servicing update adds an
+            // overload - issue #12, seen on VS2022 AND VS2026 (the assembly ships to both). Select the
+            // exact shape we call instead.
+            var getProxyOpen = PickMethod(typeof(IServiceBroker), "GetProxyAsync", m =>
+            {
+                if (!m.IsGenericMethodDefinition) return false;
+                var p = m.GetParameters();
+                return p.Length == 3
+                    && typeof(ServiceRpcDescriptor).IsAssignableFrom(p[0].ParameterType)
+                    && p[1].ParameterType == typeof(ServiceActivationOptions)
+                    && p[2].ParameterType == typeof(CancellationToken);
+            });
+            if (getProxyOpen == null)
+            {
+                Log.Warn("Native VS terminal: no compatible IServiceBroker.GetProxyAsync overload - falling back to external console.");
+                return false;
+            }
+            var getProxy = getProxyOpen.MakeGenericMethod(terminalServiceType);
             object? terminalService = await UnwrapAsync(
                 getProxy.Invoke(broker, new object?[] { descriptor, default(ServiceActivationOptions), ct }));
             if (terminalService == null)
@@ -123,7 +141,8 @@ internal static class VsTerminalLauncher
 
                 // TerminalWindowOptions.Profile alone is ignored unless the profile is first registered with the
                 // service - without this, CreateTerminalWindowAsync silently falls back to the user's default shell.
-                terminalServiceType.GetMethod("AddCachedProfile")?.Invoke(terminalService, new object?[] { profile });
+                PickMethod(terminalServiceType, "AddCachedProfile", m => m.GetParameters().Length == 1)?
+                    .Invoke(terminalService, new object?[] { profile });
 
                 object options = Activator.CreateInstance(windowOptionsType)!; // ctor already defaults Focus/AllowUserInput/AutoResize=true
                 windowOptionsType.GetProperty("Name")?.SetValue(options, "Claude Code");
@@ -132,8 +151,24 @@ internal static class VsTerminalLauncher
                 windowOptionsType.GetProperty("Focus")?.SetValue(options, true);
                 windowOptionsType.GetProperty("AllowUserInput")?.SetValue(options, true);
 
-                object? guidResult = await UnwrapAsync(
-                    terminalServiceType.GetMethod("CreateTerminalWindowAsync")!.Invoke(terminalService, new object?[] { ct, options }));
+                // Same overload tolerance as GetProxyAsync, plus parameter-ORDER tolerance: pick the
+                // 2-arg overload taking (options, token) in either order and build the call to match.
+                var create = PickMethod(terminalServiceType, "CreateTerminalWindowAsync", m =>
+                {
+                    var p = m.GetParameters();
+                    return p.Length == 2
+                        && p.Any(x => x.ParameterType == typeof(CancellationToken))
+                        && p.Any(x => x.ParameterType.IsAssignableFrom(windowOptionsType));
+                });
+                if (create == null)
+                {
+                    Log.Warn("Native VS terminal: no compatible CreateTerminalWindowAsync overload - falling back to external console.");
+                    return false;
+                }
+                object?[] callArgs = create.GetParameters()[0].ParameterType == typeof(CancellationToken)
+                    ? new object?[] { ct, options }
+                    : new object?[] { options, ct };
+                object? guidResult = await UnwrapAsync(create.Invoke(terminalService, callArgs));
                 if (guidResult is not Guid)
                 {
                     Log.Warn("Native VS terminal: CreateTerminalWindowAsync returned no guid - falling back to external console.");
@@ -151,7 +186,8 @@ internal static class VsTerminalLauncher
                 try
                 {
                     if (profile != null)
-                        terminalServiceType.GetMethod("RemoveCachedProfile")?.Invoke(terminalService, new object?[] { profile });
+                        PickMethod(terminalServiceType, "RemoveCachedProfile", m => m.GetParameters().Length == 1)?
+                            .Invoke(terminalService, new object?[] { profile });
                 }
                 catch { /* best-effort cleanup; the profile cache is cosmetic */ }
 
@@ -164,6 +200,22 @@ internal static class VsTerminalLauncher
             Log.Warn($"Native VS terminal launch failed ({e.GetType().Name}: {e.Message}) - falling back to external console.");
             return false;
         }
+    }
+
+    /// <summary>
+    /// Overload-tolerant method lookup. Type.GetMethod(name) THROWS AmbiguousMatchException the moment
+    /// a VS/ServiceHub update adds an overload of a member we address by name (issue #12) - and this
+    /// whole class talks to assemblies that update underneath us. Enumerate by name, filter by the
+    /// call shape we intend, and among survivors prefer the fewest parameters, so a richer overload
+    /// added later never breaks the existing call.
+    /// </summary>
+    private static MethodInfo? PickMethod(Type type, string name, Func<MethodInfo, bool>? where = null)
+    {
+        IEnumerable<MethodInfo> candidates = type
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
+            .Where(m => m.Name == name);
+        if (where != null) candidates = candidates.Where(where);
+        return candidates.OrderBy(m => m.GetParameters().Length).FirstOrDefault();
     }
 
     // ---------------- reflection plumbing (mirrors Testing/TestRunner.cs) ----------------
