@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.14.1 - 2026-07-29
+
+### Fixes
+
+- **Native terminal launch failed with `AmbiguousMatchException` on updated VS builds** ([#12](https://github.com/firish/claude_code_vs/issues/12) — VS 2022 and VS 2026, falling back to the external console). The launcher addressed undocumented Terminal/ServiceHub members with bare `Type.GetMethod(name)`, which *throws* the moment a servicing update adds an overload of that member — and the identical failure on both VS versions points at `IServiceBroker.GetProxyAsync`, whose assembly ships to both. All four by-name lookups (`GetProxyAsync`, `CreateTerminalWindowAsync`, `Add/RemoveCachedProfile`) now enumerate overloads and select by the exact call shape — `CreateTerminalWindowAsync` additionally tolerates either parameter order — so a richer overload added by a future VS update can never break the launch again. Side-by-side VS 2022 + 2026 installs were not the cause.
+
 ## 1.14.0 - 2026-07-28
 
 **Screen capture — giving Claude eyes** ([`docs/VISION.md`](docs/VISION.md)). Two new `vs-debug` tools let Claude take its own screenshots instead of asking you to paste one: `vs_capture_window` (the debugged app's window; the VS window; or any window by title — the browser showing your site) and `vs_capture_screen` (one monitor or all). Gated behind a new **Allow screen capture** panel toggle — default off, in-memory, resets each session, and it gates *every* target, since a title-addressed capture can already see anything on the desktop.
