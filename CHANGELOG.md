@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.14.2 - 2026-07-30
+
+### Fixes
+
+- **The docked terminal now works on VS 2022** ([#12](https://github.com/firish/claude_code_vs/issues/12) follow-up: 1.14.1 fixed VS 2026 but VS 2022 fell back with "Terminal types not found"). Root cause, established by dumping 17.14's `Microsoft.VisualStudio.Terminal.dll` headlessly: VS 2022 ships the same brokered terminal service with an **older contract** — no `TerminalWindowOptions`, no `CreateTerminalWindowAsync`. The launcher now detects which surface is present and, on 17.x, calls the legacy `CreateTerminalAsync(ct, name, ProfileConfig, workingDirectory)` (same `ProfileConfig` ctor on both) with a best-effort `ShowAsync` for focus parity. The launch log names which surface was used. The external-console fallback is unchanged for anything older or stranger.
+
 ## 1.14.1 - 2026-07-29
 
 ### Fixes

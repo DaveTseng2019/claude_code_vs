@@ -70,11 +70,14 @@ internal static class VsTerminalLauncher
             var descriptorsType = FindType("Microsoft.VisualStudio.Terminal.TerminalServiceDescriptors");
             var windowOptionsType = FindType("Microsoft.VisualStudio.Terminal.TerminalWindowOptions");
             var profileConfigType = FindType("Microsoft.VisualStudio.Terminal.ProfileConfig");
-            if (terminalServiceType == null || descriptorsType == null || windowOptionsType == null || profileConfigType == null)
+            if (terminalServiceType == null || descriptorsType == null || profileConfigType == null)
             {
                 Log.Warn("Native VS terminal: Microsoft.VisualStudio.Terminal types not found (VS edition/version mismatch) - falling back to external console.");
                 return false;
             }
+            // TerminalWindowOptions only exists on the 18.x (VS 2026) surface. Its absence means the
+            // VS 2022 (17.x) contract, where CreateTerminalAsync takes name/profile/cwd as plain args
+            // (issue #12 follow-up: same service, older shape - dumped headlessly from 17.14's DLL).
 
             var descriptor = descriptorsType
                 .GetProperty("TerminalServiceDescriptor", BindingFlags.Public | BindingFlags.Static)?
@@ -144,38 +147,74 @@ internal static class VsTerminalLauncher
                 PickMethod(terminalServiceType, "AddCachedProfile", m => m.GetParameters().Length == 1)?
                     .Invoke(terminalService, new object?[] { profile });
 
-                object options = Activator.CreateInstance(windowOptionsType)!; // ctor already defaults Focus/AllowUserInput/AutoResize=true
-                windowOptionsType.GetProperty("Name")?.SetValue(options, "Claude Code");
-                windowOptionsType.GetProperty("WorkingDirectory")?.SetValue(options, workingDirectory);
-                windowOptionsType.GetProperty("Profile")?.SetValue(options, profile);
-                windowOptionsType.GetProperty("Focus")?.SetValue(options, true);
-                windowOptionsType.GetProperty("AllowUserInput")?.SetValue(options, true);
-
                 // Same overload tolerance as GetProxyAsync, plus parameter-ORDER tolerance: pick the
                 // 2-arg overload taking (options, token) in either order and build the call to match.
-                var create = PickMethod(terminalServiceType, "CreateTerminalWindowAsync", m =>
+                var create = windowOptionsType == null ? null : PickMethod(terminalServiceType, "CreateTerminalWindowAsync", m =>
                 {
                     var p = m.GetParameters();
                     return p.Length == 2
                         && p.Any(x => x.ParameterType == typeof(CancellationToken))
                         && p.Any(x => x.ParameterType.IsAssignableFrom(windowOptionsType));
                 });
-                if (create == null)
+
+                object? guidResult;
+                string surface;
+                if (create != null)
                 {
-                    Log.Warn("Native VS terminal: no compatible CreateTerminalWindowAsync overload - falling back to external console.");
-                    return false;
+                    object options = Activator.CreateInstance(windowOptionsType!)!; // ctor already defaults Focus/AllowUserInput/AutoResize=true
+                    windowOptionsType!.GetProperty("Name")?.SetValue(options, "Claude Code");
+                    windowOptionsType.GetProperty("WorkingDirectory")?.SetValue(options, workingDirectory);
+                    windowOptionsType.GetProperty("Profile")?.SetValue(options, profile);
+                    windowOptionsType.GetProperty("Focus")?.SetValue(options, true);
+                    windowOptionsType.GetProperty("AllowUserInput")?.SetValue(options, true);
+
+                    object?[] callArgs = create.GetParameters()[0].ParameterType == typeof(CancellationToken)
+                        ? new object?[] { ct, options }
+                        : new object?[] { options, ct };
+                    guidResult = await UnwrapAsync(create.Invoke(terminalService, callArgs));
+                    surface = "18.x surface";
                 }
-                object?[] callArgs = create.GetParameters()[0].ParameterType == typeof(CancellationToken)
-                    ? new object?[] { ct, options }
-                    : new object?[] { options, ct };
-                object? guidResult = await UnwrapAsync(create.Invoke(terminalService, callArgs));
+                else
+                {
+                    // VS 2022 (17.x) legacy surface: CreateTerminalAsync(ct, name, ProfileConfig, cwd).
+                    // Prefer the exact-ProfileConfig overload over its ITerminalProfile twin.
+                    var createLegacy = PickMethod(terminalServiceType, "CreateTerminalAsync", m =>
+                    {
+                        var p = m.GetParameters();
+                        return p.Length == 4
+                            && p[0].ParameterType == typeof(CancellationToken)
+                            && p[1].ParameterType == typeof(string)
+                            && p[2].ParameterType == profileConfigType
+                            && p[3].ParameterType == typeof(string);
+                    });
+                    if (createLegacy == null)
+                    {
+                        Log.Warn("Native VS terminal: neither CreateTerminalWindowAsync (18.x) nor a compatible CreateTerminalAsync (17.x) found - falling back to external console.");
+                        return false;
+                    }
+                    guidResult = await UnwrapAsync(createLegacy.Invoke(terminalService, new object?[] { ct, "Claude Code", profile, workingDirectory }));
+                    surface = "17.x legacy surface";
+
+                    // The old surface has no Focus option; ShowAsync is its bring-to-front. Best-effort.
+                    if (guidResult is Guid g)
+                    {
+                        try
+                        {
+                            await UnwrapAsync(PickMethod(terminalServiceType, "ShowAsync",
+                                    m => m.GetParameters().Length == 2 && m.GetParameters()[0].ParameterType == typeof(Guid))?
+                                .Invoke(terminalService, new object?[] { g, ct }));
+                        }
+                        catch { /* focus is cosmetic */ }
+                    }
+                }
+
                 if (guidResult is not Guid)
                 {
-                    Log.Warn("Native VS terminal: CreateTerminalWindowAsync returned no guid - falling back to external console.");
+                    Log.Warn("Native VS terminal: terminal creation returned no guid - falling back to external console.");
                     return false;
                 }
 
-                Log.Info($"Launched Claude Code in VS's native Terminal window (port {ssePort}, cwd '{workingDirectory ?? "(default)"}').");
+                Log.Info($"Launched Claude Code in VS's native Terminal window ({surface}, port {ssePort}, cwd '{workingDirectory ?? "(default)"}').");
                 return true;
             }
             finally
