@@ -27,8 +27,18 @@ internal static class PermissionHookInstaller
     private const int DebugTimeoutSeconds = 10;
     private const int NotifyTimeoutSeconds = 10;
 
+    /// <summary>
+    /// The registered hook command. Test-Path-guarded (marketplace feedback): the scripts live in the
+    /// workspace's .claude/ and the path is cwd-relative, so a session started in a subfolder - or a
+    /// checkout that has settings.json but not the scripts - used to spam "-File does not exist" errors
+    /// on every prompt. Guarded, a missing script is a silent no-op (exit 0) and the CLI's own behavior
+    /// takes over; install-on-connect (BridgeHost) is the other half, materializing the scripts for any
+    /// session that reaches the bridge. Stdin flows through to the script, and its exit code/stdout are
+    /// preserved, so hook semantics are unchanged when the script IS present.
+    /// </summary>
     private static string Command(string script) =>
-        $"powershell -NoProfile -ExecutionPolicy Bypass -File .claude/{script}";
+        "powershell -NoProfile -ExecutionPolicy Bypass -Command "
+        + $"\"if (Test-Path '.claude/{script}') {{ & '.claude/{script}' }} else {{ exit 0 }}\"";
 
     public static void EnsureInstalled(string workspaceRoot)
     {
@@ -82,7 +92,7 @@ internal static class PermissionHookInstaller
             }
 
             File.WriteAllText(settingsPath, root.ToString(Formatting.Indented));
-            Log.Info($"hooks: updated {settingsPath} (PreToolUse {(addedPre ? "ADDED" : "present")}, Stop {(addedStop ? "ADDED" : "present")}, UserPromptSubmit {(addedDebug ? "ADDED" : "present")}, Notification {(addedNotify ? "ADDED" : "present")})");
+            Log.Info($"hooks: updated {settingsPath} (PreToolUse {(addedPre ? "added/updated" : "present")}, Stop {(addedStop ? "added/updated" : "present")}, UserPromptSubmit {(addedDebug ? "added/updated" : "present")}, Notification {(addedNotify ? "added/updated" : "present")})");
         }
         catch (Exception e)
         {
@@ -90,7 +100,11 @@ internal static class PermissionHookInstaller
         }
     }
 
-    /// <summary>Add a hook for <paramref name="eventName"/> pointing at <paramref name="script"/> if not already present. Returns true if it changed settings.</summary>
+    /// <summary>
+    /// Add a hook for <paramref name="eventName"/> pointing at <paramref name="script"/>, or MIGRATE an
+    /// existing entry whose command drifted from the current form (e.g. the pre-1.14.4 unguarded
+    /// "-File .claude/x.ps1" shape). Returns true if it changed settings.
+    /// </summary>
     private static bool EnsureHook(JObject hooks, string eventName, string? matcher, string script, int timeoutSeconds)
     {
         // Same clone-on-reparent hazard as above: keep the existing array in place, only assign a new one.
@@ -99,7 +113,17 @@ internal static class PermissionHookInstaller
             arr = new JArray();
             hooks[eventName] = arr;
         }
-        if (AlreadyInstalled(arr, script)) return false;
+
+        var existing = FindOurHook(arr, script);
+        if (existing != null)
+        {
+            var want = Command(script);
+            if (string.Equals((string?)existing["command"], want, StringComparison.Ordinal)) return false;
+            // Migrate IN PLACE: setting a value property on the EXISTING object is safe - it's
+            // re-parenting a token into a new parent that clones (the 1.11.0 lesson), not this.
+            existing["command"] = want;
+            return true;
+        }
 
         var entry = new JObject
         {
@@ -116,7 +140,9 @@ internal static class PermissionHookInstaller
         return true;
     }
 
-    private static bool AlreadyInstalled(JArray eventHooks, string script)
+    /// <summary>The inner hook object whose command references our script, or null. Match is by script
+    /// name so every historical command shape (old -File form, new guarded form) is found and owned.</summary>
+    private static JObject? FindOurHook(JArray eventHooks, string script)
     {
         foreach (var entry in eventHooks.OfType<JObject>())
         {
@@ -125,10 +151,10 @@ internal static class PermissionHookInstaller
             {
                 var cmd = (string?)h["command"];
                 if (cmd != null && cmd.IndexOf(script, StringComparison.OrdinalIgnoreCase) >= 0)
-                    return true;
+                    return h;
             }
         }
-        return false;
+        return null;
     }
 
     private static string ReadEmbeddedScript(string scriptFileName)

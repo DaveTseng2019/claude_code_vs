@@ -89,7 +89,27 @@ internal sealed class BridgeHost : IDisposable
         {
             Ui.BridgeStatus.SetConnected(connected);
             WatchMcpLoad(connected); // arm/stand-down the "PULL tools didn't load" detector
-            if (connected) return;
+            if (connected)
+            {
+                // Install-on-connect (marketplace feedback): a session that reaches the bridge without
+                // going through our Launch button (manual `claude` + /ide, a fresh clone whose committed
+                // settings.json references our hooks) used to hit "-File does not exist" on every prompt
+                // because the scripts were never materialized. Idempotent; runs off-thread.
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var ws = await GetWorkspaceRootAsync();
+                        if (!string.IsNullOrEmpty(ws))
+                        {
+                            Hooks.PermissionHookInstaller.EnsureInstalled(ws!);
+                            Hooks.McpInstaller.EnsureInstalled(ws!);
+                        }
+                    }
+                    catch (Exception e) { Log.Warn($"install-on-connect failed: {e.Message}"); }
+                });
+                return;
+            }
 #pragma warning disable VSSDK007
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
@@ -167,6 +187,17 @@ internal sealed class BridgeHost : IDisposable
     /// </summary>
     private async Task<(bool allow, string? reason)> ShowPermissionDiffAsync(string filePath, string newContents, CancellationToken ct)
     {
+        // Selective gate (marketplace feedback): the CLI's own working files - its ~/.claude
+        // memory/config tree, temp-dir scratch files, and the workspace's .claude/ internals - skip the
+        // diff entirely, so a session scaffolding scratch code or writing memory never stalls on review.
+        // PROJECT CODE stays gated: every create or edit under the workspace (outside .claude/) still
+        // opens the diff.
+        if (IsScratchOrMemoryPath(filePath, Ui.BridgeStatus.Workspace))
+        {
+            Log.Info($"scratch/memory write auto-allowed (not project code): {filePath}");
+            return (true, null);
+        }
+
         // Run-wild: when auto-accept is on, allow immediately without opening the diff.
         if (Ui.BridgeStatus.AutoAcceptEdits)
         {
@@ -199,6 +230,33 @@ internal sealed class BridgeHost : IDisposable
         if (d.Accepted)
             ScheduleReload(filePath);
         return (d.Accepted, d.RejectReason);
+    }
+
+    /// <summary>
+    /// True for the CLI's own working areas, which the edit gate skips: the user-level ~/.claude tree
+    /// (auto-memory, config), anything under the machine temp dir (the CLI's scratchpad lives there),
+    /// and the workspace's .claude/ subtree (our scripts, attachments, CLI settings). Deliberately NOT
+    /// path-pattern guessing beyond that - a "scratch/" folder inside the repo is still project code.
+    /// </summary>
+    private static bool IsScratchOrMemoryPath(string filePath, string? workspace)
+    {
+        try
+        {
+            var full = System.IO.Path.GetFullPath(filePath);
+            bool Under(string root) =>
+                !string.IsNullOrEmpty(root) &&
+                full.StartsWith(root.TrimEnd('\\', '/') + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (Under(System.IO.Path.Combine(home, ".claude"))) return true;
+            if (Under(System.IO.Path.GetTempPath())) return true;
+            if (!string.IsNullOrEmpty(workspace) && Under(System.IO.Path.Combine(workspace!, ".claude"))) return true;
+            return false;
+        }
+        catch
+        {
+            return false; // unparseable path -> gate it (fail toward review)
+        }
     }
 
     /// <summary>

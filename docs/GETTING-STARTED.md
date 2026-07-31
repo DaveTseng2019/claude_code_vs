@@ -1,5 +1,7 @@
 # Getting started
 
+**Where is everything?** One dockable panel: **View > Other Windows > Claude Code**. Open it, click **Launch Claude Code**, and you are running - everything else in this guide starts from that panel. (The launch command is also on the **Tools** menu.)
+
 The practical setup: install the extension, launch Claude connected to Visual Studio, and learn the panel and the safety toggles. For what the tools actually do once you are connected, see [`DEBUGGER.md`](DEBUGGER.md), [`TESTING.md`](TESTING.md), [`SEMANTIC.md`](SEMANTIC.md), and [`VISION.md`](VISION.md).
 
 **Jump to:** [Requirements](#requirements) · [Install](#install) · [First launch](#first-launch) · [The panel](#the-panel) · [The diff gate](#the-diff-gate) · [Auto-accept](#run-wild-auto-accept) · [Attachments](#attachments-screenshots-and-files) · [Notifications](#notifications) · [Let Claude debug](#letting-claude-debug) · [Troubleshooting](#troubleshooting)
@@ -55,6 +57,8 @@ It shows:
 Every edit Claude proposes opens in Visual Studio's own diff viewer, and approving there is the only step. There is no second yes/no prompt in the terminal.
 
 ![A Claude edit in the Visual Studio diff viewer, with Accept, Reject, and Reject with feedback on the InfoBar and the feedback box open](images/diff-reject.png)
+
+One deliberate exception (1.14.4): writes to Claude's **own working files** - its `~/.claude` memory and config, temp-dir scratch files, and the workspace's `.claude/` internals - skip the gate entirely (each one is logged in the activity feed), so a session never stalls on reviewing its own scaffolding. Project code, both new files and edits to existing ones, always gets the diff.
 
 You have three choices on the InfoBar:
 

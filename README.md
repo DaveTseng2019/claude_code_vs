@@ -142,6 +142,8 @@ A dockable Claude Code panel shows connection status, edit decisions, and token 
 - **Marketplace:** search for *Claude Code for Visual Studio* in **Extensions > Manage Extensions**, or install from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=firish.bridgev1).
 - **Sideload:** download the `.vsix` from [Releases](https://github.com/firish/claude_code_vs/releases) and double-click it.
 
+After installing, everything lives in one dockable panel: **View > Other Windows > Claude Code**.
+
 ## Quickstart
 
 1. Open your project or solution in Visual Studio 2026.
