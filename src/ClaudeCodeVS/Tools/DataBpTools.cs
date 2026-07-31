@@ -42,6 +42,11 @@ internal sealed class VsSetDataBreakpointTool : IIdeTool
 
     public async Task<object> InvokeAsync(JToken args, CancellationToken ct)
     {
+        // Experimental ARM64 host support (1.14.3): managed data breakpoints are an x64-only capability
+        // of the .NET runtime/debugger itself - not something this extension can port around.
+        if (System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.Architecture.Arm64)
+            return new JObject { ["error"] = "managed data breakpoints are x64-only (a .NET runtime/debugger limitation) - unavailable on ARM64. Use vs_set_breakpoint with a condition as the nearest substitute." };
+
         if (!Ui.BridgeStatus.AllowDebuggerDrive)
             return new JObject
             {
