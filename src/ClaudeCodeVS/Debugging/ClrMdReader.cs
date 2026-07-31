@@ -35,6 +35,16 @@ internal static class ClrMdReader
 
     private static JObject RunWorker(string command, int pid, params string[] extra)
     {
+        // Experimental ARM64 host support (1.14.3): the bundled worker is x64, and ClrMD must match the
+        // debuggee's architecture - on ARM64 Windows the debuggee is native ARM64 while the worker would
+        // run emulated x64, so the snapshot fails confusingly. Refuse honestly instead.
+        if (System.Runtime.InteropServices.RuntimeInformation.OSArchitecture == System.Runtime.InteropServices.Architecture.Arm64)
+            return new JObject
+            {
+                ["error"] = "this tool is x64-only for now: the bundled ClrMD worker cannot snapshot an ARM64 process. "
+                          + "Every non-ClrMD debugger tool (state, evaluate, threads, breakpoints, stepping, attach, ...) works on ARM64.",
+            };
+
         string dir = Path.GetDirectoryName(typeof(ClrMdReader).Assembly.Location) ?? "";
         string exe = Path.Combine(dir, "ClrMdWorker", "ClrMdWorker.exe");
         if (!File.Exists(exe))

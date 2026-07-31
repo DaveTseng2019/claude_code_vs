@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.14.3 - 2026-07-31
+
+**Experimental ARM64 support** — the extension now installs on ARM64 Visual Studio (Windows on ARM: Surface devices, Parallels on Apple silicon). Requested via the Marketplace Q&A.
+
+- The extension is managed/AnyCPU and every reflected VS surface (Roslyn, Test Explorer, the terminal service) binds to the host's own copies, so the core — diff gate, diagnostics, semantic navigation, tests, debugger reads/drive, attachments, screen capture, notifications — runs natively on ARM64 devenv. The enabling change is a second `arm64` installation target in the manifest.
+- **Two x64-only pieces now refuse with clear messages on ARM64 instead of failing confusingly:** the six ClrMD tools (`vs_wait_chains`, `vs_async_stacks`, `vs_heap_stats`, `vs_threadpool`, `vs_gc_roots`, `vs_heap_diff` — the bundled worker is x64 and ClrMD must match the debuggee's architecture) and `vs_set_data_breakpoint` (managed data breakpoints are an x64-only .NET runtime/debugger capability).
+- "Experimental" means exactly this: architecture-neutral by construction, verified in-house on x64 only — ARM64 confirmation is community-sourced. Reports welcome on the tracker.
+
 ## 1.14.2 - 2026-07-30
 
 ### Fixes

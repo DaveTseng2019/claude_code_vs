@@ -192,6 +192,7 @@ For debugger access it adds a `UserPromptSubmit` hook that injects live break st
 - Cost figures are estimates, not billing.
 - Attachments: images read directly must be PNG/JPEG/GIF/WebP under 5 MB (bigger ones attach with a downscale note; BMPs are transcoded). Excel, video, archives and other binaries attach as paths for Claude's tools rather than direct reads. Attachment token figures are estimates.
 - Screen capture is opt-in per session and cannot capture minimized windows (the tool asks for a restore). Windows that block `PrintWindow` fall back to a screen-region copy, which includes anything overlapping them. See [`docs/VISION.md`](docs/VISION.md).
+- ARM64 Windows (Surface devices, Parallels on Apple silicon) is **experimental** as of 1.14.3: the core surface is architecture-neutral and runs natively, but it is community-verified rather than tested in-house. The ClrMD memory/deadlock tools and managed data breakpoints are x64-only and say so when called.
 
 ## Troubleshooting
 
