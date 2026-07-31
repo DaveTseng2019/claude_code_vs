@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.14.4 - 2026-07-31
+
+Three fixes straight from Marketplace feedback.
+
+### Fixes
+
+- **Sessions no longer stall on Claude's own scratch/memory writes.** The diff gate now skips the CLI's working files - the `~/.claude` memory/config tree, temp-dir scratch files, and the workspace's `.claude/` internals - each skip visible in the activity feed. Project code is unchanged: every create or edit under the workspace still opens the diff. (Reported as "Accept/Reject when creating scratch/temporary files halts the session".)
+- **No more "-File does not exist" hook errors.** Two halves: hook/MCP scripts now install whenever a CLI session *connects* to the bridge (not only via the Launch button - covers manual `claude` + `/ide` and fresh clones whose committed `settings.json` references our hooks), and registered hook commands are now `Test-Path`-guarded so a genuinely missing script is a silent no-op instead of a per-prompt error. Existing settings.json entries are migrated to the guarded form in place.
+- **Docs now open with where the extension lives** (**View > Other Windows > Claude Code**) - it was documented but buried.
+
 ## 1.14.3 - 2026-07-31
 
 **Experimental ARM64 support** — the extension now installs on ARM64 Visual Studio (Windows on ARM: Surface devices, Parallels on Apple silicon). Requested via the Marketplace Q&A.
