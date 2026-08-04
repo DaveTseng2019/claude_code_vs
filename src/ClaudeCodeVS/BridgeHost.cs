@@ -42,6 +42,10 @@ internal sealed class BridgeHost : IDisposable
     private CancellationTokenSource? _mcpGraceCts;
     private volatile bool _mcpEverSeen;
 
+    // Hooks-without-IDE-channel detection (the "launched outside the extension" fingerprint).
+    private volatile bool _wsEverConnected;
+    private int _hooksOnlyWarned; // Interlocked once-latch (hook POSTs race on the listener threads)
+
     public BridgeHost(AsyncPackage package) => _package = package;
 
     /// <summary>The port the bridge is listening on, or null if not started yet.</summary>
@@ -91,6 +95,8 @@ internal sealed class BridgeHost : IDisposable
             WatchMcpLoad(connected); // arm/stand-down the "PULL tools didn't load" detector
             if (connected)
             {
+                _wsEverConnected = true;
+                Ui.BridgeStatus.SetHooksOnlyWarning(false); // a real connection supersedes the /ide nudge
                 // Install-on-connect (marketplace feedback): a session that reaches the bridge without
                 // going through our Launch button (manual `claude` + /ide, a fresh clone whose committed
                 // settings.json references our hooks) used to hit "-File does not exist" on every prompt
@@ -122,6 +128,12 @@ internal sealed class BridgeHost : IDisposable
 
         // The other half of the detector: any /mcp or /mcp-semantic hit proves the MCP servers loaded.
         _server.McpActivity += OnMcpActivity;
+
+        // The THIRD detection leg (issue #17 follow-up): hook POSTs arriving while the IDE WebSocket
+        // has NEVER connected = a session launched outside the extension (hooks loaded, IDE channel
+        // never dialed - the panel would otherwise sit silently in its idle "Waiting for CLI" state
+        // while token stats tick up). Warn once; a later connect clears it, and /ide is the fix.
+        _server.HookActivity += OnHookActivity;
 
         // Single-gate: the PreToolUse hook POSTs to /permission, which routes here to show the diff.
         _server.PermissionHandler = ShowPermissionDiffAsync;
@@ -404,6 +416,22 @@ internal sealed class BridgeHost : IDisposable
     /// late hit after the user approves the project servers clears it). Sticky: every subsequent MCP
     /// request short-circuits on the volatile read before taking the lock.
     /// </summary>
+    /// <summary>
+    /// Hook traffic with no IDE connection ever seen: a `claude` session is alive and using this
+    /// workspace's hooks, but it wasn't launched from the panel and never dialed the WebSocket - so
+    /// the diff/selection channel is dark while the panel looks merely idle. Surface the fix instead
+    /// of staying silent. Once per bridge lifetime; superseded the moment a client connects.
+    /// </summary>
+    private void OnHookActivity()
+    {
+        if (_wsEverConnected) return;
+        if (System.Threading.Interlocked.Exchange(ref _hooksOnlyWarned, 1) == 1) return;
+        Ui.BridgeStatus.SetHooksOnlyWarning(true);
+        Log.Warn("A Claude session is using this workspace's hooks but never connected the IDE channel " +
+                 "(launched outside the extension). Run /ide in that terminal and pick Visual Studio to " +
+                 "light up the diff and selection sync, or relaunch from the panel.");
+    }
+
     private void OnMcpActivity()
     {
         if (_mcpEverSeen) return; // steady-state fast path (fires on every MCP request)

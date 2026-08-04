@@ -48,6 +48,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
     private readonly Border _pendingCard;
     private readonly TextBlock _pendingText;
     private readonly Border _toolsWarningCard;
+    private readonly TextBlock _toolsWarningTitle;
     private readonly TextBlock _toolsWarningText;
     private readonly CheckBox _autoAccept;
     private readonly CheckBox _allowDrive;
@@ -177,14 +178,15 @@ internal sealed class ClaudeToolWindowControl : UserControl
         // Surfaces the otherwise-silent gap where the IDE WebSocket connected but vs-debug/vs-semantic/
         // tests never loaded (Claude launched outside the workspace, or project servers unapproved).
         var warnStack = new StackPanel();
-        warnStack.Children.Add(new TextBlock
+        _toolsWarningTitle = new TextBlock
         {
             Text = "⚠  Workspace hooks & tools didn't load for this session",
             FontSize = 12,
             FontWeight = FontWeights.SemiBold,
             Foreground = WarnText,
             TextWrapping = TextWrapping.Wrap,
-        });
+        };
+        warnStack.Children.Add(_toolsWarningTitle);
         _toolsWarningText = new TextBlock { FontSize = 11.5, Opacity = 0.85, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0) };
         warnStack.Children.Add(_toolsWarningText);
         var warnButtons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
@@ -492,9 +494,25 @@ internal sealed class ClaudeToolWindowControl : UserControl
             _pendingCard.Visibility = Visibility.Visible;
         }
 
-        // "Tools didn't load" banner: only meaningful while connected (BridgeHost clears it on disconnect).
-        if (BridgeStatus.ToolsWarning && BridgeStatus.Connected)
+        // The two-variant warning banner. Variant 1 ("hooks only"): a session's hook POSTs are reaching
+        // the bridge but the IDE WebSocket never connected - claude was launched outside the extension,
+        // and /ide from that terminal lights up the diff/selection channel. Variant 2 ("config not
+        // loaded"): connected, but no /mcp handshake - the session never loaded the workspace's .claude
+        // configuration at all. Only meaningful in their respective connection states.
+        if (BridgeStatus.HooksOnlyWarning && !BridgeStatus.Connected)
         {
+            _toolsWarningTitle.Text = "⚠  A Claude session is running, but not connected to Visual Studio";
+            _toolsWarningText.Text =
+                "Its hooks are reaching this workspace's bridge (token stats update), but the session was " +
+                "launched outside the extension and never connected the IDE channel - so edits won't open " +
+                "the review diff and selection isn't shared. Run /ide in that Claude terminal and pick " +
+                "Visual Studio (works from any folder inside the workspace), or relaunch from here. The " +
+                "vs-debug / vs-semantic tools additionally need the session started at the workspace root.";
+            _toolsWarningCard.Visibility = Visibility.Visible;
+        }
+        else if (BridgeStatus.ToolsWarning && BridgeStatus.Connected)
+        {
+            _toolsWarningTitle.Text = "⚠  Workspace hooks & tools didn't load for this session";
             _toolsWarningText.Text =
                 "Claude connected, but this session never loaded the workspace's .claude configuration - " +
                 "so the edit-review diff, notifications, and the vs-debug / vs-semantic / test tools are " +

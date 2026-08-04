@@ -131,6 +131,20 @@ internal static class BridgeStatus
     }
 
     /// <summary>
+    /// A Claude session's hooks are reaching the bridge while the IDE WebSocket has NEVER connected
+    /// this VS session - the fingerprint of `claude` launched outside the extension (workspace hooks
+    /// loaded, IDE channel never dialed). Drives the panel's "run /ide" banner; cleared on connect.
+    /// </summary>
+    public static bool HooksOnlyWarning { get; private set; }
+
+    public static void SetHooksOnlyWarning(bool value)
+    {
+        if (HooksOnlyWarning == value) return;
+        HooksOnlyWarning = value;
+        Changed?.Invoke();
+    }
+
+    /// <summary>
     /// The CLI session's own permission mode, as observed on the most recent edit-permission request
     /// ("default" | "acceptEdits" | "plan" | "bypassPermissions"; null = unknown / no session yet).
     /// Drives the run-wild checkbox's reflected state: while the CLI pre-approves edits, the checkbox

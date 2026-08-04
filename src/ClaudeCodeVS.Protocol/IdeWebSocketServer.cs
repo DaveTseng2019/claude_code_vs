@@ -37,6 +37,14 @@ public sealed class IdeWebSocketServer
     public event Action? McpActivity;
 
     /// <summary>
+    /// Raised on any hook-endpoint POST (/permission, /usage, /notify, /debug-context). Hook traffic
+    /// arriving while the IDE WebSocket has NEVER connected is the fingerprint of a Claude session
+    /// launched outside the extension (workspace hooks loaded, IDE channel never dialed) - the VSIX
+    /// uses it to tell the user to run /ide or relaunch from the panel instead of staying silent.
+    /// </summary>
+    public event Action? HookActivity;
+
+    /// <summary>
     /// Handles a POST /permission request from the PreToolUse hook: given (filePath, proposed new
     /// contents), show a review diff and return whether to allow the edit (+ an optional reject reason
     /// to feed back to the CLI). Set by the VSIX; null means no handler (fail-open). This is how
@@ -151,24 +159,28 @@ public sealed class IdeWebSocketServer
             if (string.Equals(ctx.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase)
                 && ctx.Request.Url?.AbsolutePath == "/permission")
             {
+                HookActivity?.Invoke();
                 await HandlePermissionRequestAsync(ctx, ct);
                 return;
             }
             if (string.Equals(ctx.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase)
                 && ctx.Request.Url?.AbsolutePath == "/usage")
             {
+                HookActivity?.Invoke();
                 await HandleUsageRequestAsync(ctx, ct);
                 return;
             }
             if (string.Equals(ctx.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase)
                 && ctx.Request.Url?.AbsolutePath == "/notify")
             {
+                HookActivity?.Invoke();
                 await HandleNotifyRequestAsync(ctx, ct);
                 return;
             }
             if (string.Equals(ctx.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase)
                 && ctx.Request.Url?.AbsolutePath == "/debug-context")
             {
+                HookActivity?.Invoke();
                 await HandleDebugContextRequestAsync(ctx, ct);
                 return;
             }
