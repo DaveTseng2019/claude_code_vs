@@ -65,7 +65,12 @@ internal sealed class OpenDiffTool : IIdeTool
             try
             {
                 await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(ct);
-                DiffSession.Open(oldPath, newPath, contents, tabName, temp, _decisions);
+                // writeBack:false (issue #17 double-write): in the terminal model the CLI applies the
+                // edit ITSELF after approval - live-verified on 2.1.221, where our Accept write-back
+                // PLUS the CLI's own apply doubled append-style edits (the terminal prompt is a second
+                // gate openDiff acceptance doesn't dismiss). DIFF_ACCEPTED closes the review; the CLI
+                // is the sole writer - same contract as the hook/permission path.
+                DiffSession.Open(oldPath, newPath, contents, tabName, temp, _decisions, writeBack: false);
             }
             catch (Exception e)
             {

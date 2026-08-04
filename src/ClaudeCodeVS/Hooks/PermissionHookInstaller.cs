@@ -28,20 +28,21 @@ internal static class PermissionHookInstaller
     private const int NotifyTimeoutSeconds = 10;
 
     /// <summary>
-    /// The registered hook command. Resolution order (issue #17 - "fix the issue, don't hide it"):
-    /// (1) cwd-relative .claude/&lt;script&gt; (the common case: CLI runs at the workspace root);
-    /// (2) $env:CLAUDE_PROJECT_DIR-anchored - the CLI sets that env var for hooks, and PowerShell
-    ///     itself expands $env:, so a session started in a SUBFOLDER of the workspace now finds the
-    ///     script instead of silently skipping it (the 1.14.4 guard's flaw);
-    /// (3) only a genuinely absent script no-ops (exit 0), letting the CLI's own behavior take over -
-    ///     and install-on-connect (BridgeHost) re-materializes scripts for any session that reaches
-    ///     the bridge, so (3) should effectively never happen for a connected session.
-    /// Stdin, stdout, and exit codes flow through unchanged, so hook semantics are identical when the
-    /// script is found.
+    /// The registered hook command. ⚠️ The CLI executes hook commands through a POSIX shell (bash) even
+    /// on Windows, and bash expands $-tokens inside double quotes BEFORE PowerShell runs - a first
+    /// attempt using PowerShell variables ($s, $env:...) arrived at PowerShell with every $ eaten and
+    /// parse-errored on each prompt (issue #17 live test). So the one-liner contains NO PowerShell
+    /// $-syntax at all; the single $CLAUDE_PROJECT_DIR token is there FOR bash, which expands it to the
+    /// workspace root (the CLI sets it for hooks - its own documented pattern). Resolution order:
+    /// (1) cwd-relative .claude/&lt;script&gt; (CLI at the workspace root; also the working path if a shell
+    ///     change ever stops expanding $CLAUDE_PROJECT_DIR - it then stays a literal that fails Test-Path);
+    /// (2) the bash-expanded absolute path - fixes sessions started in a SUBFOLDER of the workspace;
+    /// (3) only a genuinely absent script no-ops (exit 0), and install-on-connect re-materializes those.
+    /// Stdin, stdout, and exit codes flow through unchanged when the script is found.
     /// </summary>
     private static string Command(string script) =>
         "powershell -NoProfile -ExecutionPolicy Bypass -Command "
-        + $"\"$s='.claude/{script}'; if (-not (Test-Path $s) -and $env:CLAUDE_PROJECT_DIR) {{ $s = Join-Path $env:CLAUDE_PROJECT_DIR $s }}; if (Test-Path $s) {{ & $s }} else {{ exit 0 }}\"";
+        + $"\"if (Test-Path '.claude/{script}') {{ & '.claude/{script}' }} elseif (Test-Path '$CLAUDE_PROJECT_DIR/.claude/{script}') {{ & '$CLAUDE_PROJECT_DIR/.claude/{script}' }} else {{ exit 0 }}\"";
 
     public static void EnsureInstalled(string workspaceRoot)
     {
