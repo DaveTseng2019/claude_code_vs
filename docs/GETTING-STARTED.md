@@ -80,6 +80,8 @@ That round-trip is the point. You steer the edit without retyping the whole requ
 
 The **Auto-accept (run wild)** toggle applies edits without opening the diff, for when you want to let it move fast. It is off by default and resets each session, so it is never left on silently. Turn it off to go back to reviewing each edit.
 
+It stays in sync with the CLI's own permission mode (1.14.5): checked at **Launch**, the new session starts in `acceptEdits`, so the CLI itself pre-approves edits from the first prompt. And it works the other way too - if you switch the terminal to auto-accept (shift+tab) or run with `--dangerously-skip-permissions`, the checkbox shows checked and locks while that session pre-approves edits (unchecking it could not bring the diffs back - the approval already happened at the CLI level; the terminal is the lever for a running session).
+
 ---
 
 ## Attachments: screenshots and files
@@ -131,4 +133,5 @@ The same toggle gates the test tools that launch the debugger, `vs_debug_test` a
 - **New files land in the wrong folder.** Launch from the extension, which pins the working directory to your workspace, or run `claude` from inside the repo.
 - **`getDiagnostics` returns nothing.** Open the code as a project and confirm the error appears in the Error List. Loose files in Open-Folder mode have no compiler analysis.
 - **An attachment chip didn't show up in the CLI's input box.** The CLI drops the reference if it was mid-turn (or its agents view was focused) when you attached. Click the chip in the panel to send it again.
+- **No diff and no vs-* tools after starting `claude` in a subfolder.** Claude Code loads project settings (hooks, MCP servers) from its own project directory - starting in a subfolder like `obj\` resolves that elsewhere, so the workspace's `.claude` configuration is never loaded at all. Launch from the panel, which pins the working directory to the workspace root, or start `claude` at the root yourself.
 - **Filing a bug.** Include the **Output > Claude Code** pane contents and your `claude --version`.

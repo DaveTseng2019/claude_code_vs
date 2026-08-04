@@ -110,6 +110,7 @@ internal sealed class BridgeHost : IDisposable
                 });
                 return;
             }
+            Ui.BridgeStatus.SetCliPermissionMode(null); // the observed mode belonged to the session that just ended
 #pragma warning disable VSSDK007
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
@@ -187,6 +188,10 @@ internal sealed class BridgeHost : IDisposable
     /// </summary>
     private async Task<(bool allow, string? reason)> ShowPermissionDiffAsync(string filePath, string newContents, string? permissionMode, CancellationToken ct)
     {
+        // Surface the session's mode to the panel: the run-wild checkbox reflects (and locks to) the
+        // CLI's own choice while it pre-approves edits.
+        Ui.BridgeStatus.SetCliPermissionMode(string.IsNullOrEmpty(permissionMode) ? null : permissionMode);
+
         // Honor the CLI's own permission mode (issue #17): when the user chose acceptEdits or
         // bypassPermissions for the session, edits are pre-approved at the CLI level and our gate must
         // not be stricter than that explicit choice. Older CLIs send no mode -> gate as always.
@@ -584,7 +589,11 @@ internal sealed class BridgeHost : IDisposable
         var psi = new ProcessStartInfo
         {
             FileName = "cmd.exe",
-            Arguments = "/K claude",                 // /K keeps the window open after claude exits
+            // Run-wild at launch = start the session in acceptEdits, the CLI mode that pre-approves
+            // edits, so the checkbox and the session agree from the first prompt. (A RUNNING session's
+            // mode cannot be changed from outside; mid-session the checkbox still auto-allows on the
+            // bridge side, and shift+tab in the terminal is the CLI-side lever.)
+            Arguments = "/K claude" + (Ui.BridgeStatus.AutoAcceptEdits ? " --permission-mode acceptEdits" : ""), // /K keeps the window open after claude exits
             UseShellExecute = false,                 // required to pass Environment below
             CreateNoWindow = false,                  // give it its own console window
         };

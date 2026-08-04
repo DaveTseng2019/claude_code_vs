@@ -121,6 +121,25 @@ internal static class BridgeStatus
     }
 
     /// <summary>
+    /// The CLI session's own permission mode, as observed on the most recent edit-permission request
+    /// ("default" | "acceptEdits" | "plan" | "bypassPermissions"; null = unknown / no session yet).
+    /// Drives the run-wild checkbox's reflected state: while the CLI pre-approves edits, the checkbox
+    /// shows checked and DISABLED - we cannot re-gate what the user already approved at the CLI level,
+    /// so the UI must not pretend otherwise. Cleared on disconnect.
+    /// </summary>
+    public static string? CliPermissionMode { get; private set; }
+
+    /// <summary>True while the CLI session itself pre-approves edits (acceptEdits / bypassPermissions).</summary>
+    public static bool CliEditsPreApproved => CliPermissionMode is "acceptEdits" or "bypassPermissions";
+
+    public static void SetCliPermissionMode(string? mode)
+    {
+        if (CliPermissionMode == mode) return;
+        CliPermissionMode = mode;
+        Changed?.Invoke();
+    }
+
+    /// <summary>
     /// In-IDE notifications ("Claude finished responding" / "Claude needs your input"): the main-window
     /// InfoBar + taskbar flash the <see cref="Notifier"/> raises from the Stop and Notification hooks.
     /// Default ON - it's a convenience, not a safety gate - and in-memory like the other toggles, so the

@@ -113,8 +113,10 @@ internal sealed class ClaudeToolWindowControl : UserControl
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 14, 2),
         };
-        _autoAccept.Checked += (s, e) => BridgeStatus.SetAutoAcceptEdits(true);
-        _autoAccept.Unchecked += (s, e) => BridgeStatus.SetAutoAcceptEdits(false);
+        // The guard keeps PROGRAMMATIC check-state changes (reflecting the CLI's session mode in
+        // UpdateStatus) from being recorded as the user's own run-wild preference.
+        _autoAccept.Checked += (s, e) => { if (!_syncingToggles) BridgeStatus.SetAutoAcceptEdits(true); };
+        _autoAccept.Unchecked += (s, e) => { if (!_syncingToggles) BridgeStatus.SetAutoAcceptEdits(false); };
         _autoAccept.SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey); // else label is black-on-dark
         toggles.Children.Add(_autoAccept);
 
@@ -334,6 +336,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
     }
 
     private bool _wired;
+    private bool _syncingToggles; // true while UpdateStatus mirrors state INTO the checkboxes
 
     private void Attach()
     {
@@ -389,12 +392,38 @@ internal sealed class ClaudeToolWindowControl : UserControl
 
     private void UpdateStatus()
     {
-        if (_autoAccept.IsChecked != BridgeStatus.AutoAcceptEdits)
-            _autoAccept.IsChecked = BridgeStatus.AutoAcceptEdits;
-        if (_allowDrive.IsChecked != BridgeStatus.AllowDebuggerDrive)
-            _allowDrive.IsChecked = BridgeStatus.AllowDebuggerDrive;
-        if (_allowCapture.IsChecked != BridgeStatus.AllowScreenCapture)
-            _allowCapture.IsChecked = BridgeStatus.AllowScreenCapture;
+        _syncingToggles = true;
+        try
+        {
+            // Run-wild reflects the CLI session's own mode (issue #17 follow-up): while the CLI
+            // pre-approves edits (acceptEdits / bypassPermissions, e.g. shift+tab auto-accept in the
+            // terminal), the checkbox shows checked and DISABLED - unchecking it could not re-gate
+            // edits the user already approved at the CLI level, so the UI must not offer it. When the
+            // session mode is default (or no session), the checkbox is the user's own bridge-side
+            // toggle exactly as before. The checked-at-Launch direction starts the CLI in acceptEdits.
+            if (BridgeStatus.CliEditsPreApproved)
+            {
+                _autoAccept.IsChecked = true;
+                _autoAccept.IsEnabled = false;
+                _autoAccept.ToolTip = $"Edits are pre-approved by the CLI session (permission mode '{BridgeStatus.CliPermissionMode}'). Change it in the terminal (shift+tab), or start a new session.";
+            }
+            else
+            {
+                _autoAccept.IsEnabled = true;
+                _autoAccept.ToolTip = "Apply edits without opening the diff (and launch new sessions in acceptEdits). Resets when VS restarts.";
+                if (_autoAccept.IsChecked != BridgeStatus.AutoAcceptEdits)
+                    _autoAccept.IsChecked = BridgeStatus.AutoAcceptEdits;
+            }
+
+            if (_allowDrive.IsChecked != BridgeStatus.AllowDebuggerDrive)
+                _allowDrive.IsChecked = BridgeStatus.AllowDebuggerDrive;
+            if (_allowCapture.IsChecked != BridgeStatus.AllowScreenCapture)
+                _allowCapture.IsChecked = BridgeStatus.AllowScreenCapture;
+        }
+        finally
+        {
+            _syncingToggles = false;
+        }
         if (_notify.IsChecked != BridgeStatus.NotifyEnabled)
             _notify.IsChecked = BridgeStatus.NotifyEnabled;
 
