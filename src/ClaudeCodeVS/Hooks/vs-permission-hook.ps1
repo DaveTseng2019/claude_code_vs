@@ -1,3 +1,4 @@
+# vs:auto-managed - the Claude Code VS extension (re)writes this file on Launch/connect so fixes ship automatically. Remove THIS LINE to take ownership and the extension will leave this file alone.
 # Single-gate PreToolUse hook for Edit/Write/MultiEdit (auto-installed by the Claude Code VS extension).
 # Reconstructs the proposed file content, posts it to the VS bridge's /permission endpoint, and lets
 # the native VS diff (Accept/Reject) be the SOLE gate. Fail-open: any error -> allow (never block the CLI).
@@ -71,7 +72,10 @@ try {
     }
     if (-not $port) { Emit 'allow' 'no Visual Studio bridge lockfile found' }
 
-    $body = @{ filePath = $file; newContents = $new; transcript_path = $p.transcript_path } | ConvertTo-Json -Compress -Depth 8
+    # Pass the CLI's own permission mode through: when the user chose acceptEdits / bypassPermissions
+    # for the session, the bridge allows without opening the diff (our gate must never be stricter
+    # than the user's explicit CLI-level choice). Absent on older CLIs -> bridge gates as always.
+    $body = @{ filePath = $file; newContents = $new; transcript_path = $p.transcript_path; permissionMode = [string]$p.permission_mode } | ConvertTo-Json -Compress -Depth 8
     # Send the body as explicit UTF-8 bytes; Invoke-RestMethod's default string encoding mangles
     # non-ASCII content (em-dashes, smart quotes) into invalid JSON.
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($body)

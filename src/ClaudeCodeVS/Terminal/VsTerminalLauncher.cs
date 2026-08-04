@@ -139,7 +139,8 @@ internal static class VsTerminalLauncher
 
                 // /K keeps the window open after claude exits (parity with today's cmd.exe path); env vars are
                 // baked into an inline `set` chain since TerminalWindowOptions has no EnvironmentVariables property.
-                string args = $"/K set ENABLE_IDE_INTEGRATION=true&&set CLAUDE_CODE_SSE_PORT={ssePort}&&claude";
+                string args = $"/K set ENABLE_IDE_INTEGRATION=true&&set CLAUDE_CODE_SSE_PORT={ssePort}&&claude"
+                            + (Ui.BridgeStatus.AutoAcceptEdits ? " --permission-mode acceptEdits" : ""); // run-wild at launch: see BridgeHost.LaunchClaudeAsync
                 profile = profileCtor.Invoke(new object?[] { "Claude Code", "cmd.exe", args, false });
 
                 // TerminalWindowOptions.Profile alone is ignored unless the profile is first registered with the

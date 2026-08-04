@@ -1,3 +1,4 @@
+# vs:auto-managed - the Claude Code VS extension (re)writes this file on Launch/connect so fixes ship automatically. Remove THIS LINE to take ownership and the extension will leave this file alone.
 # Notification hook (auto-installed by the Claude Code VS extension). The CLI fires this when Claude
 # needs the user's attention (a permission prompt, or it went idle waiting for input); we forward the
 # message to the VS bridge's /notify endpoint so the extension can raise an in-IDE notification

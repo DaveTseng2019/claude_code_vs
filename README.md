@@ -6,7 +6,7 @@ Bring [Claude Code](https://claude.com/claude-code) into **Visual Studio 2026**.
 
 *A fresh Claude session driving the Visual Studio debugger to find a bug that is invisible in the output, then opening the fix in the native diff.*
 
-**Status:** community project, not affiliated with Anthropic. Visual Studio 2026 only for now. Tested against `claude` 2.1.191.
+**Status:** community project, not affiliated with Anthropic. Visual Studio 2026 only for now. Tested against `claude` 2.1.221.
 
 **Jump to a feature:** [Native diff](#a-native-diff-with-one-approval-step) · [Drive the debugger](#a-debugger-claude-can-drive) · [Data breakpoints](#break-when-a-value-changes) · [Catch flaky tests](#catch-a-failing-test-even-the-flaky-ones) · [Semantic navigation](#read-code-the-way-the-compiler-does) · [Integrated terminal](#claude-in-the-ides-own-terminal) · [Attach files](#attach-a-screenshot-or-any-file) · [Claude's eyes](#claude-takes-its-own-screenshots) · [The panel](#a-live-panel)
 
@@ -115,6 +115,10 @@ Pasting a screenshot into the Claude Code CLI on Windows silently does nothing (
 
 ![The attachments tray with two staged screenshots as chips, their token estimate, and the @-mention entries in the activity feed](docs/images/upload-image.png)
 
+Text gets a **composer** (1.15.0): pasting or dragging multi-line text opens an editor to review and shape it first - line breaks, trimming, a live token estimate - and **Attach** stages it as a `.txt` with its `@` reference in the CLI. The **Compose** button opens the same editor empty, which is the pleasant way to write multi-line prompt material from scratch.
+
+![The composer dialog holding pasted multi-line text with a live token estimate and Attach/Cancel buttons](docs/images/compose-box.png)
+
 Every attachment shows an **estimated token cost before you send** - on the chip's tooltip, and totaled next to the tray. A full screenshot and a 4K one both land near ~1.5k tokens (the API downscales), while a tight Win+Shift+S crop costs a fraction of that, and a 2 MB JSON log announcing *≈212k tokens* is your cue to ask Claude to Grep it instead of reading it whole. Formats Claude cannot read directly (Excel, video, archives) still attach - the chip is labeled, Claude gets the path, and it reaches for a script or tool on its own. BMPs are transcoded to vision-ready PNGs automatically. Files already in your workspace are referenced in place; everything else is copied into a gitignored `.claude/attachments/` so reads never hit a permission prompt.
 
 ### Claude takes its own screenshots
@@ -129,13 +133,13 @@ Every capture is staged as a visible chip in the attachment tray and logged in t
 
 A dockable Claude Code panel shows connection status, edit decisions, and token usage with an estimated cost for the latest call and the running session. It also holds the three safety toggles (apply edits without the diff, allow Claude to drive the debugger, and allow screen capture), all off by default and all reset each session, plus a **Notify** toggle (on by default) that mutes the finished/needs-input notifications.
 
-![The Claude Code panel showing the connection pill, the debugger-drive toggle, and token and cost figures](docs/images/full-panel.png)
+![The Claude Code panel: connection pill, the safety-toggle row, edit and debugger stats, the attach tray with Paste and Compose, and the activity feed](docs/images/claude-pannel-3.png)
 
 ## Requirements
 
 - Visual Studio 2026.
 - The Claude Code CLI, installed and authenticated. See the [Claude Code docs](https://docs.claude.com/claude-code). This extension makes no model calls and does no agent work itself, so it needs the CLI.
-- Tested against `claude` 2.1.191.
+- Tested against `claude` 2.1.221.
 
 ## Install
 
@@ -173,7 +177,7 @@ For debugger access it adds a `UserPromptSubmit` hook that injects live break st
 
 - The bridge binds to **127.0.0.1 only** and validates an auth token from the lockfile on every connection. The token is never logged.
 - The extension makes no network calls and no LLM calls of its own. All AI work is the `claude` CLI, under your own authentication.
-- On Launch it writes these into your workspace's `.claude/` folder and merges hook entries into `.claude/settings.json`, preserving existing content:
+- On Launch (and on connect) it writes these into your workspace's `.claude/` folder and merges hook entries into `.claude/settings.json`, preserving existing content. Each script's first line carries a `vs:auto-managed` marker - delete that line to take ownership of a script and the extension will never overwrite your copy:
   - `vs-permission-hook.ps1`, which routes Edit/Write/MultiEdit edits through the VS diff.
   - `vs-usage-hook.ps1`, which reports the transcript path so the panel can show token stats.
   - `vs-debug-context-hook.ps1`, which injects live break state into your prompt while you are paused.
@@ -185,7 +189,7 @@ For debugger access it adds a `UserPromptSubmit` hook that injects live break st
 ## Limitations and known issues
 
 - Visual Studio 2026 only for now. A VS 2022 backfill is planned if there is demand.
-- The integration protocol is undocumented and version-fragile, so a `claude` update could change it. Known-good: 2.1.191.
+- The integration protocol is undocumented and version-fragile, so a `claude` update could change it. Known-good: 2.1.221.
 - Diagnostics need a loaded project. The Error List and Roslyn will not analyze loose files.
 - Semantic navigation is C#/VB and needs a loaded project. It reads the Roslyn workspace, so it sees the solution open in VS rather than the CLI's working directory if they differ, and it does not cover C++ navigation.
 - Debugger features target managed (.NET) code. Reading runtime state is always on, and driving execution is opt-in. Native and C++ runtime inspection is not covered.

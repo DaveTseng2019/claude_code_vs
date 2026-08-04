@@ -35,6 +35,10 @@ internal sealed class Notifier : IVsInfoBarUIEvents
     public static void TurnEnded()
         => Post("Claude finished responding.", autoDismiss: true, feedWorthy: false);
 
+    /// <summary>An actionable hint (e.g. the CLI-side lever for a panel toggle). Auto-dismisses; logged to the feed.</summary>
+    public static void Tip(string message)
+        => Post(message, autoDismiss: true, feedWorthy: true);
+
     /// <summary>Claude needs the user (Notification hook): permission prompt or idle. Stays up until dismissed.</summary>
     public static void NeedsAttention(string message)
     {

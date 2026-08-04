@@ -85,6 +85,16 @@ internal static class BridgeStatus
         if (AutoAcceptEdits == value) return;
         AutoAcceptEdits = value;
         Changed?.Invoke();
+
+        // Checked MID-SESSION: the bridge side now auto-allows edits, but a running CLI session's own
+        // mode cannot be changed from out here - so hand the user the lever instead of leaving the
+        // mismatch silent. (Checked before Launch, the session starts in acceptEdits and none of this
+        // applies; a permissive session locks the checkbox, so value=true implies mode is default.)
+        if (value && Connected && !CliEditsPreApproved)
+        {
+            Notifier.Tip("Run wild is on: edits now apply without the diff. Tip: press Shift+Tab in the "
+                       + "Claude terminal to switch the session itself to auto-accept (covers non-edit prompts too).");
+        }
     }
 
     /// <summary>
@@ -117,6 +127,39 @@ internal static class BridgeStatus
     {
         if (AllowScreenCapture == value) return;
         AllowScreenCapture = value;
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// A Claude session's hooks are reaching the bridge while the IDE WebSocket has NEVER connected
+    /// this VS session - the fingerprint of `claude` launched outside the extension (workspace hooks
+    /// loaded, IDE channel never dialed). Drives the panel's "run /ide" banner; cleared on connect.
+    /// </summary>
+    public static bool HooksOnlyWarning { get; private set; }
+
+    public static void SetHooksOnlyWarning(bool value)
+    {
+        if (HooksOnlyWarning == value) return;
+        HooksOnlyWarning = value;
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// The CLI session's own permission mode, as observed on the most recent edit-permission request
+    /// ("default" | "acceptEdits" | "plan" | "bypassPermissions"; null = unknown / no session yet).
+    /// Drives the run-wild checkbox's reflected state: while the CLI pre-approves edits, the checkbox
+    /// shows checked and DISABLED - we cannot re-gate what the user already approved at the CLI level,
+    /// so the UI must not pretend otherwise. Cleared on disconnect.
+    /// </summary>
+    public static string? CliPermissionMode { get; private set; }
+
+    /// <summary>True while the CLI session itself pre-approves edits (acceptEdits / bypassPermissions).</summary>
+    public static bool CliEditsPreApproved => CliPermissionMode is "acceptEdits" or "bypassPermissions";
+
+    public static void SetCliPermissionMode(string? mode)
+    {
+        if (CliPermissionMode == mode) return;
+        CliPermissionMode = mode;
         Changed?.Invoke();
     }
 

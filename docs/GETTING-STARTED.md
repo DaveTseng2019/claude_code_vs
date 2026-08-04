@@ -12,7 +12,7 @@ The practical setup: install the extension, launch Claude connected to Visual St
 
 - **Visual Studio 2026.**
 - **The Claude Code CLI**, installed and authenticated. The extension makes no model calls and does no agent work itself, so it needs the CLI. See the [Claude Code docs](https://docs.claude.com/claude-code).
-- Tested against `claude` 2.1.191.
+- Tested against `claude` 2.1.221.
 
 ---
 
@@ -38,7 +38,7 @@ On Launch, the extension writes a few helper scripts into your workspace's `.cla
 
 The dockable Claude Code panel is your status and control surface.
 
-![The Claude Code panel showing the Connected pill, the two toggles, edit and debugger stats, token and cost figures, and the activity log](images/full-panel.png)
+![The Claude Code panel showing the Connected pill, the safety-toggle row, edit and debugger stats, the attach tray, token and cost figures, and the activity log](images/claude-pannel-3.png)
 
 It shows:
 
@@ -60,6 +60,8 @@ Every edit Claude proposes opens in Visual Studio's own diff viewer, and approvi
 
 One deliberate exception (1.14.4): writes to Claude's **own working files** - its `~/.claude` memory and config, temp-dir scratch files, and the workspace's `.claude/` internals - skip the gate entirely (each one is logged in the activity feed), so a session never stalls on reviewing its own scaffolding. Project code, both new files and edits to existing ones, always gets the diff.
 
+And the gate defers to **your CLI-level choice** (1.14.5): if you run the session with `acceptEdits` or `bypassPermissions` (auto-accept / "dangerously skip permissions"), edits are pre-approved at the CLI and the diff does not open - each allow is logged in the feed. In the CLI's default mode, the diff is the gate exactly as described above.
+
 You have three choices on the InfoBar:
 
 - **Accept** applies the change and writes the file.
@@ -78,15 +80,20 @@ That round-trip is the point. You steer the edit without retyping the whole requ
 
 The **Auto-accept (run wild)** toggle applies edits without opening the diff, for when you want to let it move fast. It is off by default and resets each session, so it is never left on silently. Turn it off to go back to reviewing each edit.
 
+It stays in sync with the CLI's own permission mode (1.14.5): checked at **Launch**, the new session starts in `acceptEdits`, so the CLI itself pre-approves edits from the first prompt. And it works the other way too - if you switch the terminal to auto-accept (shift+tab) or run with `--dangerously-skip-permissions`, the checkbox shows checked and locks while that session pre-approves edits (unchecking it could not bring the diffs back - the approval already happened at the CLI level; the terminal is the lever for a running session).
+
 ---
 
 ## Attachments: screenshots and files
 
 The terminal CLI cannot take a pasted screenshot on Windows (Ctrl+V of a Win+Shift+S capture silently does nothing), and pointing it at files means typing absolute paths. The panel's attach tray covers both. Three ways in:
 
-- **Drop** one or more files from Explorer onto the *"📎 Attach"* card.
-- **Paste**: take a screenshot (Win+Shift+S), then click **Paste** - it also takes files you copied in Explorer.
-- **Ctrl+V** anywhere in the panel does the same as the button.
+- **Drop** one or more files from Explorer onto the *"📎 Attach"* card - or a text selection dragged from any editor or browser.
+- **Paste**: take a screenshot (Win+Shift+S), then click **Paste** - it also takes files you copied in Explorer, and **copied text**, which opens in an editor dialog first: review it, trim it, add line breaks (live token estimate included), then **Attach** (Ctrl+Enter) stages it as a `.txt` with its own chip.
+- **Compose** opens that same editor empty - the pleasant way to write multi-line prompt material from scratch and hand it to Claude as an `@` attachment.
+- **Ctrl+V** anywhere in the panel does the same as the Paste button.
+
+On multi-line prompts generally: the CLI's `[Pasted text #1 +N lines]` chip is display collapse, not loss - the model receives every line - and `\` followed by Enter types a manual newline in the composer. The tray is for when the text is big enough that a *file* is the better vehicle (visible, reusable, and Grep-able).
 
 Each attachment becomes a chip in the tray, and an `@` reference is pushed straight into the CLI's input box - you will see it appear in the terminal, ready for you to type your question around it and send. Screenshots are saved as PNGs (and the model receives the actual image, not a path guess). Chips stay until you remove them: **click a chip** to @-mention it again (the recovery if you attached while Claude was mid-turn and the reference got dropped), **✕** removes one (deleting our staged copy - files already in your workspace are referenced in place and never touched), **Clear** empties the tray. Anything attached before Claude connects shows ⏳ and sends itself the moment it does.
 
@@ -129,4 +136,5 @@ The same toggle gates the test tools that launch the debugger, `vs_debug_test` a
 - **New files land in the wrong folder.** Launch from the extension, which pins the working directory to your workspace, or run `claude` from inside the repo.
 - **`getDiagnostics` returns nothing.** Open the code as a project and confirm the error appears in the Error List. Loose files in Open-Folder mode have no compiler analysis.
 - **An attachment chip didn't show up in the CLI's input box.** The CLI drops the reference if it was mid-turn (or its agents view was focused) when you attached. Click the chip in the panel to send it again.
+- **No diff and no vs-* tools after starting `claude` in a subfolder.** Claude Code loads project settings (hooks, MCP servers) from its own project directory - starting in a subfolder like `obj\` resolves that elsewhere, so the workspace's `.claude` configuration is never loaded at all. Launch from the panel, which pins the working directory to the workspace root, or start `claude` at the root yourself.
 - **Filing a bug.** Include the **Output > Claude Code** pane contents and your `claude --version`.

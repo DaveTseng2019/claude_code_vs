@@ -36,8 +36,9 @@ internal static class McpInstaller
             var claudeDir = Path.Combine(workspaceRoot, ".claude");
             Directory.CreateDirectory(claudeDir);
 
-            // 1) (Over)write the shim from the embedded copy, so updates ship with the extension.
-            File.WriteAllText(Path.Combine(claudeDir, ShimScript), ReadEmbeddedScript(ShimScript));
+            // 1) (Over)write the shim from the embedded copy, so updates ship with the extension -
+            //    unless the user took ownership by removing the marker line (issue #17).
+            ManagedScripts.WriteIfManaged(Path.Combine(claudeDir, ShimScript), ReadEmbeddedScript(ShimScript));
 
             // 2) Upsert the server entry into <workspace>/.mcp.json, preserving any other servers. The
             //    relative -File path resolves against the CLI's cwd (the workspace root), matching where

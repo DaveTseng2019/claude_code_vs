@@ -48,6 +48,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
     private readonly Border _pendingCard;
     private readonly TextBlock _pendingText;
     private readonly Border _toolsWarningCard;
+    private readonly TextBlock _toolsWarningTitle;
     private readonly TextBlock _toolsWarningText;
     private readonly CheckBox _autoAccept;
     private readonly CheckBox _allowDrive;
@@ -113,8 +114,10 @@ internal sealed class ClaudeToolWindowControl : UserControl
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 14, 2),
         };
-        _autoAccept.Checked += (s, e) => BridgeStatus.SetAutoAcceptEdits(true);
-        _autoAccept.Unchecked += (s, e) => BridgeStatus.SetAutoAcceptEdits(false);
+        // The guard keeps PROGRAMMATIC check-state changes (reflecting the CLI's session mode in
+        // UpdateStatus) from being recorded as the user's own run-wild preference.
+        _autoAccept.Checked += (s, e) => { if (!_syncingToggles) BridgeStatus.SetAutoAcceptEdits(true); };
+        _autoAccept.Unchecked += (s, e) => { if (!_syncingToggles) BridgeStatus.SetAutoAcceptEdits(false); };
         _autoAccept.SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey); // else label is black-on-dark
         toggles.Children.Add(_autoAccept);
 
@@ -175,14 +178,15 @@ internal sealed class ClaudeToolWindowControl : UserControl
         // Surfaces the otherwise-silent gap where the IDE WebSocket connected but vs-debug/vs-semantic/
         // tests never loaded (Claude launched outside the workspace, or project servers unapproved).
         var warnStack = new StackPanel();
-        warnStack.Children.Add(new TextBlock
+        _toolsWarningTitle = new TextBlock
         {
-            Text = "⚠  Debugger / semantic / test tools didn't load",
+            Text = "⚠  Workspace hooks & tools didn't load for this session",
             FontSize = 12,
             FontWeight = FontWeights.SemiBold,
             Foreground = WarnText,
             TextWrapping = TextWrapping.Wrap,
-        });
+        };
+        warnStack.Children.Add(_toolsWarningTitle);
         _toolsWarningText = new TextBlock { FontSize = 11.5, Opacity = 0.85, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0) };
         warnStack.Children.Add(_toolsWarningText);
         var warnButtons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
@@ -258,8 +262,12 @@ internal sealed class ClaudeToolWindowControl : UserControl
         attachHeader.Children.Add(attachHint);
         var pasteBtn = MakeButton("Paste", PasteFromClipboard);
         pasteBtn.Margin = new Thickness(6, 0, 6, 0);
-        pasteBtn.ToolTip = "Paste from the clipboard: a screenshot (Win+Shift+S) or copied files. Ctrl+V in the panel works too.";
+        pasteBtn.ToolTip = "Paste from the clipboard: a screenshot (Win+Shift+S), copied files, or copied text (opens in the composer to review/edit, then attaches as .txt). Ctrl+V in the panel works too.";
         attachHeader.Children.Add(pasteBtn);
+        var composeBtn = MakeButton("Compose", () => ComposeAndStage(""));
+        composeBtn.Margin = new Thickness(0, 0, 6, 0);
+        composeBtn.ToolTip = "Write multi-line text in an editor (line breaks, code, whatever), then attach it as a .txt with an @ reference in the Claude composer.";
+        attachHeader.Children.Add(composeBtn);
         _attachClear = MakeButton("Clear", Attachments.AttachmentService.Clear);
         _attachClear.Visibility = Visibility.Collapsed;
         attachHeader.Children.Add(_attachClear);
@@ -334,6 +342,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
     }
 
     private bool _wired;
+    private bool _syncingToggles; // true while UpdateStatus mirrors state INTO the checkboxes
 
     private void Attach()
     {
@@ -389,12 +398,38 @@ internal sealed class ClaudeToolWindowControl : UserControl
 
     private void UpdateStatus()
     {
-        if (_autoAccept.IsChecked != BridgeStatus.AutoAcceptEdits)
-            _autoAccept.IsChecked = BridgeStatus.AutoAcceptEdits;
-        if (_allowDrive.IsChecked != BridgeStatus.AllowDebuggerDrive)
-            _allowDrive.IsChecked = BridgeStatus.AllowDebuggerDrive;
-        if (_allowCapture.IsChecked != BridgeStatus.AllowScreenCapture)
-            _allowCapture.IsChecked = BridgeStatus.AllowScreenCapture;
+        _syncingToggles = true;
+        try
+        {
+            // Run-wild reflects the CLI session's own mode (issue #17 follow-up): while the CLI
+            // pre-approves edits (acceptEdits / bypassPermissions, e.g. shift+tab auto-accept in the
+            // terminal), the checkbox shows checked and DISABLED - unchecking it could not re-gate
+            // edits the user already approved at the CLI level, so the UI must not offer it. When the
+            // session mode is default (or no session), the checkbox is the user's own bridge-side
+            // toggle exactly as before. The checked-at-Launch direction starts the CLI in acceptEdits.
+            if (BridgeStatus.CliEditsPreApproved)
+            {
+                _autoAccept.IsChecked = true;
+                _autoAccept.IsEnabled = false;
+                _autoAccept.ToolTip = $"Edits are pre-approved by the CLI session (permission mode '{BridgeStatus.CliPermissionMode}'). Change it in the terminal (shift+tab), or start a new session.";
+            }
+            else
+            {
+                _autoAccept.IsEnabled = true;
+                _autoAccept.ToolTip = "Apply edits without opening the diff (and launch new sessions in acceptEdits). Resets when VS restarts.";
+                if (_autoAccept.IsChecked != BridgeStatus.AutoAcceptEdits)
+                    _autoAccept.IsChecked = BridgeStatus.AutoAcceptEdits;
+            }
+
+            if (_allowDrive.IsChecked != BridgeStatus.AllowDebuggerDrive)
+                _allowDrive.IsChecked = BridgeStatus.AllowDebuggerDrive;
+            if (_allowCapture.IsChecked != BridgeStatus.AllowScreenCapture)
+                _allowCapture.IsChecked = BridgeStatus.AllowScreenCapture;
+        }
+        finally
+        {
+            _syncingToggles = false;
+        }
         if (_notify.IsChecked != BridgeStatus.NotifyEnabled)
             _notify.IsChecked = BridgeStatus.NotifyEnabled;
 
@@ -463,15 +498,33 @@ internal sealed class ClaudeToolWindowControl : UserControl
             _pendingCard.Visibility = Visibility.Visible;
         }
 
-        // "Tools didn't load" banner: only meaningful while connected (BridgeHost clears it on disconnect).
-        if (BridgeStatus.ToolsWarning && BridgeStatus.Connected)
+        // The two-variant warning banner. Variant 1 ("hooks only"): a session's hook POSTs are reaching
+        // the bridge but the IDE WebSocket never connected - claude was launched outside the extension,
+        // and /ide from that terminal lights up the diff/selection channel. Variant 2 ("config not
+        // loaded"): connected, but no /mcp handshake - the session never loaded the workspace's .claude
+        // configuration at all. Only meaningful in their respective connection states.
+        if (BridgeStatus.HooksOnlyWarning && !BridgeStatus.Connected)
         {
+            _toolsWarningTitle.Text = "⚠  A Claude session is running, but not connected to Visual Studio";
             _toolsWarningText.Text =
-                "Claude connected, but the vs-debug / vs-semantic / test tools aren't available this session. " +
-                "Usually Claude was launched outside the solution folder" +
+                "Its hooks are reaching this workspace's bridge (token stats update), but the session was " +
+                "launched outside the extension and never connected the IDE channel - so edits won't open " +
+                "the review diff and selection isn't shared. Run /ide in that Claude terminal and pick " +
+                "Visual Studio (works from any folder inside the workspace), or relaunch from here. The " +
+                "vs-debug / vs-semantic tools additionally need the session started at the workspace root.";
+            _toolsWarningCard.Visibility = Visibility.Visible;
+        }
+        else if (BridgeStatus.ToolsWarning && BridgeStatus.Connected)
+        {
+            _toolsWarningTitle.Text = "⚠  Workspace hooks & tools didn't load for this session";
+            _toolsWarningText.Text =
+                "Claude connected, but this session never loaded the workspace's .claude configuration - " +
+                "so the edit-review diff, notifications, and the vs-debug / vs-semantic / test tools are " +
+                "all inactive. Usually Claude was started outside (or in a subfolder of) the workspace" +
                 (string.IsNullOrEmpty(BridgeStatus.Workspace) ? "" : $" ({BridgeStatus.Workspace})") +
-                ", or the project MCP servers weren't approved. Relaunch from here (pins the right folder), " +
-                "then approve the vs-debug / vs-semantic servers if prompted.";
+                ", so its project directory doesn't include our hooks - or the project MCP servers weren't " +
+                "approved. Relaunch from here (pins the right folder), or start claude at the workspace " +
+                "root; approve the vs-debug / vs-semantic servers if prompted.";
             _toolsWarningCard.Visibility = Visibility.Visible;
         }
         else
@@ -512,6 +565,12 @@ internal sealed class ClaudeToolWindowControl : UserControl
                 var png = EncodePng(bmp);
                 _ = Task.Run(() => Attachments.AttachmentService.StageImageBytesAsync(png));
             }
+            else if (e.Data.GetDataPresent(DataFormats.UnicodeText) && e.Data.GetData(DataFormats.UnicodeText) is string dropped)
+            {
+                // Dragged TEXT (a selection from an editor, a browser, anywhere) opens in the composer
+                // for review/edit, then attaches as a .txt.
+                ComposeAndStage(dropped);
+            }
             e.Handled = true;
         }
         catch (Exception ex)
@@ -538,14 +597,36 @@ internal sealed class ClaudeToolWindowControl : UserControl
                 if (paths.Count > 0)
                     _ = Task.Run(() => Attachments.AttachmentService.StageFilesAsync(paths));
             }
+            else if (Clipboard.ContainsText() && Clipboard.GetText() is string text && !string.IsNullOrWhiteSpace(text))
+            {
+                // Text opens in the composer PRE-FILLED (review/edit before it becomes a file - pastes
+                // often need a trim or a line break), then attaches as a .txt with a chip, a token
+                // estimate, and an @-mention.
+                ComposeAndStage(text);
+            }
             else
             {
-                Log.Warn("attach: clipboard has no image or files - take a screenshot (Win+Shift+S) or copy files first.");
+                Log.Warn("attach: clipboard has no image, files, or text - copy something first (Win+Shift+S for a screenshot).");
             }
         }
         catch (Exception ex)
         {
             Log.Warn($"attach: paste failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>Open the multi-line composer (optionally pre-filled) and stage the result as a .txt attachment.</summary>
+    private static void ComposeAndStage(string initialText)
+    {
+        try
+        {
+            var text = ComposeDialog.Prompt(initialText); // modal, UI thread; null = cancelled/empty
+            if (text != null)
+                _ = Task.Run(() => Attachments.AttachmentService.StageTextAsync(text));
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"attach: composer failed: {ex.Message}");
         }
     }
 

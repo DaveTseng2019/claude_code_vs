@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.15.0 - 2026-08-04
+
+All four points of [#17](https://github.com/firish/claude_code_vs/issues/17) (v1.14.4 feedback), plus two features that came out of the same testing loop.
+
+### Features
+
+- **A multi-line composer for text attachments.** Paste (or drag) multi-line text onto the panel's attach card and it opens in an editor dialog - review it, trim it, add line breaks, live token estimate - then **Attach** (Ctrl+Enter) stages it as a `.txt` with a visible chip and an `@`-mention in the CLI composer. A **Compose** button opens the same editor empty, which is the pleasant way to write any multi-line prompt material from scratch. (The CLI's own `[Pasted text +N lines]` chip is display collapse, not loss, and `\`+Enter types a manual newline - but for genuinely large text, a staged file the model can Read or Grep is the better vehicle.)
+- **Run-wild and the CLI session mode now agree.** Checked at Launch, new sessions start in `--permission-mode acceptEdits`; checked mid-session, the bridge auto-allows immediately and an InfoBar tip names the CLI-side lever (Shift+Tab) since a running session's mode can't be changed from outside. When the CLI side goes permissive (shift+tab auto-accept, `bypassPermissions`), the checkbox reflects it - checked and locked, since unchecking could not re-gate edits already approved at the CLI level - and unlocks when the mode returns to default or the session ends.
+
+### Fixes
+
+- **The extension now honors the CLI's own permission mode.** When a session runs with `acceptEdits` or `bypassPermissions` (e.g. auto-accept / "dangerously skip permissions"), edits are pre-approved at the CLI level - the diff gate no longer overrides that choice, so nothing halts. The hook passes `permission_mode` through and the bridge allows with a feed line. Default-mode sessions behave exactly as before.
+- **The missing-script guard now FIXES the common case instead of hiding it.** Hook commands resolve the script cwd-relative first, then anchored to `$CLAUDE_PROJECT_DIR` - expanded by the POSIX shell the CLI runs hook commands through (bash, even on Windows), which is also why the one-liner contains no PowerShell `$`-syntax at all: bash eats unescaped `$` tokens before PowerShell ever runs (caught live as parse errors on every prompt). A session started in a subfolder of the workspace now finds and runs the hooks. Only a genuinely absent script no-ops, and install-on-connect re-materializes those.
+- **Accepted edits no longer apply twice.** In the terminal model the CLI applies an approved edit itself, so the IDE-protocol diff's Accept write-back was a second writer - visible on append-style edits, which doubled (live-verified on `claude` 2.1.221). The `openDiff` review is now review-only, like the permission path: `DIFF_ACCEPTED` closes the review and the CLI is the sole writer.
+- **Local script edits are no longer clobbered.** Every managed script's first line carries a `vs:auto-managed` marker; the installers overwrite a script only while that line is present. Delete the line to take ownership - the extension logs the skip and leaves your copy alone permanently. (Pre-1.14.5 copies are recognized by their old header and still receive this update.)
+- **Menu cleanup after upgrades** - the panel opener moved to an explicit **View > Other Windows > Claude Code** entry (the old entry relied on VS auto-listing registered tool windows, which proved unreliable across in-place updates), and **Tools** now holds exactly one entry, **Launch Claude Code** - no more two similar items opening same-named windows. Both entries carry image-catalog icons now.
+- **The config-not-loaded banner now tells the whole story.** When a connected session never loaded the workspace's `.claude` configuration (started outside or in a subfolder of the workspace), the hooks AND the MCP servers die together - the banner now says so (edit-review diff, notifications, and the vs-* tools all inactive) and names both remedies.
+- **A running-but-never-connected session is no longer silent.** Hook POSTs arriving at the bridge while the IDE WebSocket has never connected are the fingerprint of `claude` launched outside the extension (workspace hooks alive, IDE channel dark - the panel used to sit in idle "Waiting for CLI" while token stats quietly ticked up). The panel now raises a banner naming the fix: run `/ide` in that terminal (works from any folder inside the workspace) or relaunch from the panel. Cleared the moment a session connects.
+
 ## 1.14.4 - 2026-07-31
 
 Three fixes straight from Marketplace feedback.

@@ -42,6 +42,10 @@ internal sealed class BridgeHost : IDisposable
     private CancellationTokenSource? _mcpGraceCts;
     private volatile bool _mcpEverSeen;
 
+    // Hooks-without-IDE-channel detection (the "launched outside the extension" fingerprint).
+    private volatile bool _wsEverConnected;
+    private int _hooksOnlyWarned; // Interlocked once-latch (hook POSTs race on the listener threads)
+
     public BridgeHost(AsyncPackage package) => _package = package;
 
     /// <summary>The port the bridge is listening on, or null if not started yet.</summary>
@@ -91,6 +95,8 @@ internal sealed class BridgeHost : IDisposable
             WatchMcpLoad(connected); // arm/stand-down the "PULL tools didn't load" detector
             if (connected)
             {
+                _wsEverConnected = true;
+                Ui.BridgeStatus.SetHooksOnlyWarning(false); // a real connection supersedes the /ide nudge
                 // Install-on-connect (marketplace feedback): a session that reaches the bridge without
                 // going through our Launch button (manual `claude` + /ide, a fresh clone whose committed
                 // settings.json references our hooks) used to hit "-File does not exist" on every prompt
@@ -110,6 +116,7 @@ internal sealed class BridgeHost : IDisposable
                 });
                 return;
             }
+            Ui.BridgeStatus.SetCliPermissionMode(null); // the observed mode belonged to the session that just ended
 #pragma warning disable VSSDK007
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
@@ -121,6 +128,12 @@ internal sealed class BridgeHost : IDisposable
 
         // The other half of the detector: any /mcp or /mcp-semantic hit proves the MCP servers loaded.
         _server.McpActivity += OnMcpActivity;
+
+        // The THIRD detection leg (issue #17 follow-up): hook POSTs arriving while the IDE WebSocket
+        // has NEVER connected = a session launched outside the extension (hooks loaded, IDE channel
+        // never dialed - the panel would otherwise sit silently in its idle "Waiting for CLI" state
+        // while token stats tick up). Warn once; a later connect clears it, and /ide is the fix.
+        _server.HookActivity += OnHookActivity;
 
         // Single-gate: the PreToolUse hook POSTs to /permission, which routes here to show the diff.
         _server.PermissionHandler = ShowPermissionDiffAsync;
@@ -185,8 +198,23 @@ internal sealed class BridgeHost : IDisposable
     /// CLI writes the file itself once the edit is allowed) and return whether the user accepted. The
     /// bridge's /permission endpoint calls this; the PreToolUse hook posts to that endpoint.
     /// </summary>
-    private async Task<(bool allow, string? reason)> ShowPermissionDiffAsync(string filePath, string newContents, CancellationToken ct)
+    private async Task<(bool allow, string? reason)> ShowPermissionDiffAsync(string filePath, string newContents, string? permissionMode, CancellationToken ct)
     {
+        // Surface the session's mode to the panel: the run-wild checkbox reflects (and locks to) the
+        // CLI's own choice while it pre-approves edits.
+        Ui.BridgeStatus.SetCliPermissionMode(string.IsNullOrEmpty(permissionMode) ? null : permissionMode);
+
+        // Honor the CLI's own permission mode (issue #17): when the user chose acceptEdits or
+        // bypassPermissions for the session, edits are pre-approved at the CLI level and our gate must
+        // not be stricter than that explicit choice. Older CLIs send no mode -> gate as always.
+        if (permissionMode is "acceptEdits" or "bypassPermissions")
+        {
+            Log.Info($"CLI permission mode '{permissionMode}' - allowing {filePath} without the diff");
+            Ui.BridgeStatus.RecordDecision(accepted: true);
+            ScheduleReload(filePath);
+            return (true, null);
+        }
+
         // Selective gate (marketplace feedback): the CLI's own working files - its ~/.claude
         // memory/config tree, temp-dir scratch files, and the workspace's .claude/ internals - skip the
         // diff entirely, so a session scaffolding scratch code or writing memory never stalls on review.
@@ -376,8 +404,10 @@ internal sealed class BridgeHost : IDisposable
                 if (_mcpEverSeen || token.IsCancellationRequested) return;
                 Ui.BridgeStatus.SetToolsWarning(true);
             }
-            Log.Warn("Debugger / semantic / test tools didn't load for this session - relaunch Claude from " +
-                     "the panel (or inside the workspace folder) and approve the project MCP servers if prompted.");
+            Log.Warn("This session never loaded the workspace's .claude configuration (edit-review diff, " +
+                     "notifications, and the vs-debug / vs-semantic / test tools are all inactive) - Claude was " +
+                     "likely started outside or in a subfolder of the workspace. Relaunch from the panel (pins " +
+                     "the right folder) or start claude at the workspace root; approve the project MCP servers if prompted.");
         });
     }
 
@@ -386,6 +416,22 @@ internal sealed class BridgeHost : IDisposable
     /// late hit after the user approves the project servers clears it). Sticky: every subsequent MCP
     /// request short-circuits on the volatile read before taking the lock.
     /// </summary>
+    /// <summary>
+    /// Hook traffic with no IDE connection ever seen: a `claude` session is alive and using this
+    /// workspace's hooks, but it wasn't launched from the panel and never dialed the WebSocket - so
+    /// the diff/selection channel is dark while the panel looks merely idle. Surface the fix instead
+    /// of staying silent. Once per bridge lifetime; superseded the moment a client connects.
+    /// </summary>
+    private void OnHookActivity()
+    {
+        if (_wsEverConnected) return;
+        if (System.Threading.Interlocked.Exchange(ref _hooksOnlyWarned, 1) == 1) return;
+        Ui.BridgeStatus.SetHooksOnlyWarning(true);
+        Log.Warn("A Claude session is using this workspace's hooks but never connected the IDE channel " +
+                 "(launched outside the extension). Run /ide in that terminal and pick Visual Studio to " +
+                 "light up the diff and selection sync, or relaunch from the panel.");
+    }
+
     private void OnMcpActivity()
     {
         if (_mcpEverSeen) return; // steady-state fast path (fires on every MCP request)
@@ -573,7 +619,11 @@ internal sealed class BridgeHost : IDisposable
         var psi = new ProcessStartInfo
         {
             FileName = "cmd.exe",
-            Arguments = "/K claude",                 // /K keeps the window open after claude exits
+            // Run-wild at launch = start the session in acceptEdits, the CLI mode that pre-approves
+            // edits, so the checkbox and the session agree from the first prompt. (A RUNNING session's
+            // mode cannot be changed from outside; mid-session the checkbox still auto-allows on the
+            // bridge side, and shift+tab in the terminal is the CLI-side lever.)
+            Arguments = "/K claude" + (Ui.BridgeStatus.AutoAcceptEdits ? " --permission-mode acceptEdits" : ""), // /K keeps the window open after claude exits
             UseShellExecute = false,                 // required to pass Environment below
             CreateNoWindow = false,                  // give it its own console window
         };

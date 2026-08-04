@@ -14,7 +14,7 @@ Bring [Claude Code](https://claude.com/claude-code) into **Visual Studio 2026**.
 
 *A fresh Claude session driving the Visual Studio debugger to find a bug that is invisible in the output, then opening the fix in the native diff.*
 
-**Status:** community project, not affiliated with Anthropic. Visual Studio 2026 only for now. Tested against `claude` 2.1.191.
+**Status:** community project, not affiliated with Anthropic. Visual Studio 2026 only for now. Tested against `claude` 2.1.221.
 
 ## Why
 
@@ -94,6 +94,10 @@ Pasting a screenshot into the Claude Code CLI on Windows silently does nothing (
 
 ![The attachments tray with two staged screenshots as chips, their token estimate, and the @-mention entries in the activity feed](https://raw.githubusercontent.com/firish/claude_code_vs/main/docs/images/upload-image.png)
 
+Text gets a **composer**: pasting or dragging multi-line text opens an editor to review and shape it first - line breaks, trimming, a live token estimate - and **Attach** stages it as a `.txt` with its `@` reference in the CLI. The **Compose** button opens the same editor empty, which is the pleasant way to write multi-line prompt material from scratch.
+
+![The composer dialog holding pasted multi-line text with a live token estimate and Attach/Cancel buttons](https://raw.githubusercontent.com/firish/claude_code_vs/main/docs/images/compose-box.png)
+
 Every attachment shows an **estimated token cost before you send**: a tight screenshot crop costs a fraction of a full screen, and a 2 MB JSON log announcing *≈212k tokens* is your cue to ask Claude to Grep it instead of reading it whole. Formats Claude cannot read directly (Excel, video, archives) still attach - the chip is labeled, Claude gets the path, and it reaches for a script or tool on its own. Files already in your workspace are referenced in place; everything else is copied into a gitignored `.claude/attachments/`.
 
 ### Claude takes its own screenshots
@@ -110,13 +114,13 @@ Every capture is staged as a visible chip in the attachment tray and logged in t
 
 A dockable Claude Code panel shows connection status, edit decisions, and token usage with an estimated cost. It also holds the three safety toggles (apply edits without the diff, allow Claude to drive the debugger, and allow screen capture), all off by default and all reset each session, plus a **Notify** toggle (on by default) that mutes the finished/needs-input notifications.
 
-![The Claude Code panel showing the connection pill, the debugger-drive toggle, and token and cost figures](https://raw.githubusercontent.com/firish/claude_code_vs/main/docs/images/full-panel.png)
+![The Claude Code panel: connection pill, the safety-toggle row, edit and debugger stats, the attach tray with Paste and Compose, and the activity feed](https://raw.githubusercontent.com/firish/claude_code_vs/main/docs/images/claude-pannel-3.png)
 
 ## Requirements
 
 - **Visual Studio 2026.**
 - **The Claude Code CLI**, installed and authenticated. See the [Claude Code docs](https://docs.claude.com/claude-code). This extension makes no model calls and does no agent work itself, so it needs the CLI.
-- Tested against `claude` 2.1.191.
+- Tested against `claude` 2.1.221.
 
 ## Install
 
@@ -144,14 +148,14 @@ This is a protocol bridge, not a re-implementation of the agent. On Launch it st
 
 - The bridge binds to **127.0.0.1 only** and validates an auth token from a lockfile on every connection. The token is never logged.
 - The extension makes no network calls and no LLM calls of its own. All AI work is the `claude` CLI, under your own authentication.
-- On Launch, it writes a few helper scripts into your workspace's `.claude/` folder and merges hook entries into `.claude/settings.json`, preserving existing content: the edit-gate hook, a token-usage reporter, a break-state hook, a needs-input notification hook, and a stdio shim for the `vs-debug` and `vs-semantic` MCP servers (registered in your workspace `.mcp.json`).
+- On Launch (and on connect), it writes a few helper scripts into your workspace's `.claude/` folder and merges hook entries into `.claude/settings.json`, preserving existing content: the edit-gate hook, a token-usage reporter, a break-state hook, a needs-input notification hook, and a stdio shim for the `vs-debug` and `vs-semantic` MCP servers (registered in your workspace `.mcp.json`). Each script's first line carries a `vs:auto-managed` marker - delete that line to take ownership of a script and the extension will never overwrite your copy.
 - Token cost is an estimate from hardcoded per-tier prices, shown only when you click *Show est. cost*.
 - Attachments you paste or drop are staged in your workspace's `.claude/attachments/` (screenshots become PNGs there; out-of-workspace files are copied in). The folder carries its own `*` gitignore so nothing lands in your repo, staged copies are pruned after 7 days, and files already inside the workspace are referenced in place, never copied or deleted.
 
 ## Limitations and known issues
 
 - Visual Studio 2026 only for now. A VS 2022 backfill is planned if there is demand.
-- The integration protocol is undocumented and version-fragile, so a `claude` update could change it. Known-good: 2.1.191.
+- The integration protocol is undocumented and version-fragile, so a `claude` update could change it. Known-good: 2.1.221.
 - Diagnostics need a loaded project. The Error List and Roslyn will not analyze loose files.
 - Semantic navigation is C#/VB and needs a loaded project. It reads the Roslyn workspace, so it sees the solution open in Visual Studio, and it does not cover C++ navigation.
 - Debugger features target managed (.NET) code. Reading runtime state is always on, and driving execution is opt-in. Native and C++ runtime inspection is not covered.

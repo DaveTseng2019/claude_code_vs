@@ -1,3 +1,4 @@
+# vs:auto-managed - the Claude Code VS extension (re)writes this file on Launch/connect so fixes ship automatically. Remove THIS LINE to take ownership and the extension will leave this file alone.
 # Stop hook (auto-installed by the Claude Code VS extension). Reports the conversation transcript path
 # to the VS bridge's /usage endpoint so the dockable panel can show token/cost stats. Observe-only:
 # always exits 0 so the CLI's turn-end is never blocked.

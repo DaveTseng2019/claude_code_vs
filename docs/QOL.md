@@ -44,11 +44,19 @@ Under the hood, turn-end rides the token-usage hook the extension already instal
 
 Pasting a screenshot into the Claude Code CLI on Windows silently does nothing (a [long-open upstream gap](https://github.com/anthropics/claude-code/issues/26679)), and a screenshot is not a file you can drag from anywhere. The panel's attach tray closes that gap:
 
-1. Take your capture (Win+Shift+S), then click **Paste** in the panel (or press Ctrl+V with the panel focused, or drop files from Explorer onto it).
+1. Take your capture (Win+Shift+S), then click **Paste** in the panel (or press Ctrl+V with the panel focused, or drop files from Explorer onto it). Copied or dragged **text** works too (1.15.0): it opens in a composer dialog to review and edit first - line breaks, trimming, live token estimate - then **Attach** stages it as a `.txt` with a chip and an `@`-mention. The **Compose** button opens the same editor empty for writing multi-line prompt material from scratch.
 2. The extension stages the attachment and pushes an `@` reference straight into the CLI's input box - the same `at_mentioned` protocol message the official VS Code plugin uses, verified to deliver the actual pixels to the model, not just a path.
 3. Type your question around the chip and send.
 
 ![The attachments tray with two staged screenshots as chips, their token estimate, and the @-mention entries in the activity feed](images/upload-image.png)
+
+The text path in action - a paste opens in the composer for review (edit freely, watch the live token estimate), Attach turns it into a staged chip, and the `@` reference lands in the CLI ready for you to type around:
+
+![The composer dialog holding pasted multi-line text with a live ~94-token estimate and Attach/Cancel buttons](images/compose-box.png)
+
+![The attach tray showing the staged paste chip next to the Paste and Compose buttons, with the tray's token total](images/compose-tray.png)
+
+![The docked Claude terminal with the staged attachment's @ reference in the composer, followed by the user's own words](images/compose-cli.png)
 
 What makes the tray more than a paste button:
 
