@@ -185,8 +185,19 @@ internal sealed class BridgeHost : IDisposable
     /// CLI writes the file itself once the edit is allowed) and return whether the user accepted. The
     /// bridge's /permission endpoint calls this; the PreToolUse hook posts to that endpoint.
     /// </summary>
-    private async Task<(bool allow, string? reason)> ShowPermissionDiffAsync(string filePath, string newContents, CancellationToken ct)
+    private async Task<(bool allow, string? reason)> ShowPermissionDiffAsync(string filePath, string newContents, string? permissionMode, CancellationToken ct)
     {
+        // Honor the CLI's own permission mode (issue #17): when the user chose acceptEdits or
+        // bypassPermissions for the session, edits are pre-approved at the CLI level and our gate must
+        // not be stricter than that explicit choice. Older CLIs send no mode -> gate as always.
+        if (permissionMode is "acceptEdits" or "bypassPermissions")
+        {
+            Log.Info($"CLI permission mode '{permissionMode}' - allowing {filePath} without the diff");
+            Ui.BridgeStatus.RecordDecision(accepted: true);
+            ScheduleReload(filePath);
+            return (true, null);
+        }
+
         // Selective gate (marketplace feedback): the CLI's own working files - its ~/.claude
         // memory/config tree, temp-dir scratch files, and the workspace's .claude/ internals - skip the
         // diff entirely, so a session scaffolding scratch code or writing memory never stalls on review.

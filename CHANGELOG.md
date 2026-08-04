@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.14.5 - 2026-08-04
+
+All four points of [#17](https://github.com/firish/claude_code_vs/issues/17) (v1.14.4 feedback).
+
+### Fixes
+
+- **The extension now honors the CLI's own permission mode.** When a session runs with `acceptEdits` or `bypassPermissions` (e.g. auto-accept / "dangerously skip permissions"), edits are pre-approved at the CLI level - the diff gate no longer overrides that choice, so nothing halts. The hook passes `permission_mode` through and the bridge allows with a feed line. Default-mode sessions behave exactly as before.
+- **The missing-script guard now FIXES the common case instead of hiding it.** Hook commands resolve the script cwd-relative first, then anchored to `$env:CLAUDE_PROJECT_DIR` (which the CLI sets for hooks, and PowerShell itself expands) - so a session started in a subfolder of the workspace now finds and runs the hooks instead of silently skipping them. Only a genuinely absent script no-ops, and install-on-connect re-materializes those.
+- **Local script edits are no longer clobbered.** Every managed script's first line carries a `vs:auto-managed` marker; the installers overwrite a script only while that line is present. Delete the line to take ownership - the extension logs the skip and leaves your copy alone permanently. (Pre-1.14.5 copies are recognized by their old header and still receive this update.)
+- **Menu cleanup after upgrades** - the panel opener moved to an explicit **View > Other Windows > Claude Code** entry (the old entry relied on VS auto-listing registered tool windows, which proved unreliable across in-place updates), and **Tools** now holds exactly one entry, **Launch Claude Code** - no more two similar items opening same-named windows.
+
 ## 1.14.4 - 2026-07-31
 
 Three fixes straight from Marketplace feedback.

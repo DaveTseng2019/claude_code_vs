@@ -42,7 +42,10 @@ public sealed class IdeWebSocketServer
     /// to feed back to the CLI). Set by the VSIX; null means no handler (fail-open). This is how
     /// single-gate works - the hook gates the edit through our diff.
     /// </summary>
-    public Func<string, string, CancellationToken, Task<(bool allow, string? reason)>>? PermissionHandler { get; set; }
+    /// <remarks>The third string is the CLI's own permission mode from the hook payload
+    /// ("default" | "acceptEdits" | "plan" | "bypassPermissions"; null on older CLIs) - the handler
+    /// honors acceptEdits/bypassPermissions by allowing without a diff (issue #17).</remarks>
+    public Func<string, string, string?, CancellationToken, Task<(bool allow, string? reason)>>? PermissionHandler { get; set; }
 
     /// <summary>
     /// Handles a POST /usage request from the Stop hook: given the conversation transcript path, parse
@@ -240,7 +243,8 @@ public sealed class IdeWebSocketServer
             var filePath = (string?)o["filePath"] ?? "";
             var newContents = (string?)o["newContents"] ?? "";
             var transcript = (string?)o["transcript_path"];
-            Log.Info($"permission request: {filePath} ({newContents.Length} chars)");
+            var permissionMode = (string?)o["permissionMode"];
+            Log.Info($"permission request: {filePath} ({newContents.Length} chars{(string.IsNullOrEmpty(permissionMode) ? "" : $", CLI mode {permissionMode}")})");
 
             // Refresh token/cost stats from the transcript on each edit. The Stop hook also does this,
             // but the permission hook is the reliable trigger. Fire-and-forget so the diff isn't delayed.
@@ -249,7 +253,7 @@ public sealed class IdeWebSocketServer
 
             var handler = PermissionHandler;
             if (handler != null && filePath.Length > 0)
-                (allow, reason) = await handler(filePath, newContents, ct);
+                (allow, reason) = await handler(filePath, newContents, permissionMode, ct);
             Log.Info($"permission decision: {(allow ? "allow" : "deny")} for {filePath}");
         }
         catch (Exception e)

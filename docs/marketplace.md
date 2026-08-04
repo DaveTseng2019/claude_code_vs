@@ -144,7 +144,7 @@ This is a protocol bridge, not a re-implementation of the agent. On Launch it st
 
 - The bridge binds to **127.0.0.1 only** and validates an auth token from a lockfile on every connection. The token is never logged.
 - The extension makes no network calls and no LLM calls of its own. All AI work is the `claude` CLI, under your own authentication.
-- On Launch, it writes a few helper scripts into your workspace's `.claude/` folder and merges hook entries into `.claude/settings.json`, preserving existing content: the edit-gate hook, a token-usage reporter, a break-state hook, a needs-input notification hook, and a stdio shim for the `vs-debug` and `vs-semantic` MCP servers (registered in your workspace `.mcp.json`).
+- On Launch (and on connect), it writes a few helper scripts into your workspace's `.claude/` folder and merges hook entries into `.claude/settings.json`, preserving existing content: the edit-gate hook, a token-usage reporter, a break-state hook, a needs-input notification hook, and a stdio shim for the `vs-debug` and `vs-semantic` MCP servers (registered in your workspace `.mcp.json`). Each script's first line carries a `vs:auto-managed` marker - delete that line to take ownership of a script and the extension will never overwrite your copy.
 - Token cost is an estimate from hardcoded per-tier prices, shown only when you click *Show est. cost*.
 - Attachments you paste or drop are staged in your workspace's `.claude/attachments/` (screenshots become PNGs there; out-of-workspace files are copied in). The folder carries its own `*` gitignore so nothing lands in your repo, staged copies are pruned after 7 days, and files already inside the workspace are referenced in place, never copied or deleted.
 

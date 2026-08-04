@@ -28,17 +28,20 @@ internal static class PermissionHookInstaller
     private const int NotifyTimeoutSeconds = 10;
 
     /// <summary>
-    /// The registered hook command. Test-Path-guarded (marketplace feedback): the scripts live in the
-    /// workspace's .claude/ and the path is cwd-relative, so a session started in a subfolder - or a
-    /// checkout that has settings.json but not the scripts - used to spam "-File does not exist" errors
-    /// on every prompt. Guarded, a missing script is a silent no-op (exit 0) and the CLI's own behavior
-    /// takes over; install-on-connect (BridgeHost) is the other half, materializing the scripts for any
-    /// session that reaches the bridge. Stdin flows through to the script, and its exit code/stdout are
-    /// preserved, so hook semantics are unchanged when the script IS present.
+    /// The registered hook command. Resolution order (issue #17 - "fix the issue, don't hide it"):
+    /// (1) cwd-relative .claude/&lt;script&gt; (the common case: CLI runs at the workspace root);
+    /// (2) $env:CLAUDE_PROJECT_DIR-anchored - the CLI sets that env var for hooks, and PowerShell
+    ///     itself expands $env:, so a session started in a SUBFOLDER of the workspace now finds the
+    ///     script instead of silently skipping it (the 1.14.4 guard's flaw);
+    /// (3) only a genuinely absent script no-ops (exit 0), letting the CLI's own behavior take over -
+    ///     and install-on-connect (BridgeHost) re-materializes scripts for any session that reaches
+    ///     the bridge, so (3) should effectively never happen for a connected session.
+    /// Stdin, stdout, and exit codes flow through unchanged, so hook semantics are identical when the
+    /// script is found.
     /// </summary>
     private static string Command(string script) =>
         "powershell -NoProfile -ExecutionPolicy Bypass -Command "
-        + $"\"if (Test-Path '.claude/{script}') {{ & '.claude/{script}' }} else {{ exit 0 }}\"";
+        + $"\"$s='.claude/{script}'; if (-not (Test-Path $s) -and $env:CLAUDE_PROJECT_DIR) {{ $s = Join-Path $env:CLAUDE_PROJECT_DIR $s }}; if (Test-Path $s) {{ & $s }} else {{ exit 0 }}\"";
 
     public static void EnsureInstalled(string workspaceRoot)
     {
@@ -47,11 +50,12 @@ internal static class PermissionHookInstaller
             var claudeDir = Path.Combine(workspaceRoot, ".claude");
             Directory.CreateDirectory(claudeDir);
 
-            // 1) (Over)write the hook scripts from the embedded copies, so updates ship with the extension.
-            File.WriteAllText(Path.Combine(claudeDir, PermissionScript), ReadEmbeddedScript(PermissionScript));
-            File.WriteAllText(Path.Combine(claudeDir, UsageScript), ReadEmbeddedScript(UsageScript));
-            File.WriteAllText(Path.Combine(claudeDir, DebugScript), ReadEmbeddedScript(DebugScript));
-            File.WriteAllText(Path.Combine(claudeDir, NotifyScript), ReadEmbeddedScript(NotifyScript));
+            // 1) (Over)write the hook scripts from the embedded copies, so updates ship with the
+            //    extension - unless the user took ownership by removing the marker line (issue #17).
+            ManagedScripts.WriteIfManaged(Path.Combine(claudeDir, PermissionScript), ReadEmbeddedScript(PermissionScript));
+            ManagedScripts.WriteIfManaged(Path.Combine(claudeDir, UsageScript), ReadEmbeddedScript(UsageScript));
+            ManagedScripts.WriteIfManaged(Path.Combine(claudeDir, DebugScript), ReadEmbeddedScript(DebugScript));
+            ManagedScripts.WriteIfManaged(Path.Combine(claudeDir, NotifyScript), ReadEmbeddedScript(NotifyScript));
 
             // 2) Merge hook entries into .claude/settings.json, preserving any existing content.
             var settingsPath = Path.Combine(claudeDir, "settings.json");

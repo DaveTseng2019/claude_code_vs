@@ -21,10 +21,14 @@
           <ButtonText>Launch Claude Code</ButtonText>
         </Strings>
       </Button>
-      <Button guid="guidClaudeCmdSet" id="ShowPanelId" priority="0x0101" type="Button">
-        <Parent guid="guidClaudeCmdSet" id="ClaudeMenuGroup" />
+      <!-- The panel-opener lives under View > Other Windows, where tool windows belong. It used to sit
+           in Tools next to Launch (two similar entries confused users, issue #17), and the Other Windows
+           entry relied on VS AUTO-listing registered tool windows - which proved unreliable across
+           in-place upgrades (gone on 18.8.2). An explicit placement is guaranteed. -->
+      <Button guid="guidClaudeCmdSet" id="ShowPanelId" priority="0x0100" type="Button">
+        <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1" />
         <Strings>
-          <ButtonText>Claude Code Panel</ButtonText>
+          <ButtonText>Claude Code</ButtonText>
         </Strings>
       </Button>
     </Buttons>

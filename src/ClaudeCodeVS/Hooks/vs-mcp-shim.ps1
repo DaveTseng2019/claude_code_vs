@@ -1,3 +1,4 @@
+# vs:auto-managed - the Claude Code VS extension (re)writes this file on Launch/connect so fixes ship automatically. Remove THIS LINE to take ownership and the extension will leave this file alone.
 # stdio MCP proxy shim (auto-installed by the Claude Code VS extension; registered in .mcp.json).
 #
 # The CLI launches this as an ordinary stdio MCP server. The actual debug tools (vs_debug_state,

@@ -1,3 +1,4 @@
+# vs:auto-managed - the Claude Code VS extension (re)writes this file on Launch/connect so fixes ship automatically. Remove THIS LINE to take ownership and the extension will leave this file alone.
 # UserPromptSubmit hook (auto-installed by the Claude Code VS extension). When Visual Studio is paused
 # at a breakpoint, this injects the live debug state - stop location, call stack, locals/arguments -
 # into Claude's context for this turn, so Claude can reason about RUNTIME values without calling a tool

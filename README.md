@@ -173,7 +173,7 @@ For debugger access it adds a `UserPromptSubmit` hook that injects live break st
 
 - The bridge binds to **127.0.0.1 only** and validates an auth token from the lockfile on every connection. The token is never logged.
 - The extension makes no network calls and no LLM calls of its own. All AI work is the `claude` CLI, under your own authentication.
-- On Launch it writes these into your workspace's `.claude/` folder and merges hook entries into `.claude/settings.json`, preserving existing content:
+- On Launch (and on connect) it writes these into your workspace's `.claude/` folder and merges hook entries into `.claude/settings.json`, preserving existing content. Each script's first line carries a `vs:auto-managed` marker - delete that line to take ownership of a script and the extension will never overwrite your copy:
   - `vs-permission-hook.ps1`, which routes Edit/Write/MultiEdit edits through the VS diff.
   - `vs-usage-hook.ps1`, which reports the transcript path so the panel can show token stats.
   - `vs-debug-context-hook.ps1`, which injects live break state into your prompt while you are paused.
