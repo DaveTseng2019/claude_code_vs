@@ -392,8 +392,10 @@ internal sealed class BridgeHost : IDisposable
                 if (_mcpEverSeen || token.IsCancellationRequested) return;
                 Ui.BridgeStatus.SetToolsWarning(true);
             }
-            Log.Warn("Debugger / semantic / test tools didn't load for this session - relaunch Claude from " +
-                     "the panel (or inside the workspace folder) and approve the project MCP servers if prompted.");
+            Log.Warn("This session never loaded the workspace's .claude configuration (edit-review diff, " +
+                     "notifications, and the vs-debug / vs-semantic / test tools are all inactive) - Claude was " +
+                     "likely started outside or in a subfolder of the workspace. Relaunch from the panel (pins " +
+                     "the right folder) or start claude at the workspace root; approve the project MCP servers if prompted.");
         });
     }
 

@@ -85,6 +85,16 @@ internal static class BridgeStatus
         if (AutoAcceptEdits == value) return;
         AutoAcceptEdits = value;
         Changed?.Invoke();
+
+        // Checked MID-SESSION: the bridge side now auto-allows edits, but a running CLI session's own
+        // mode cannot be changed from out here - so hand the user the lever instead of leaving the
+        // mismatch silent. (Checked before Launch, the session starts in acceptEdits and none of this
+        // applies; a permissive session locks the checkbox, so value=true implies mode is default.)
+        if (value && Connected && !CliEditsPreApproved)
+        {
+            Notifier.Tip("Run wild is on: edits now apply without the diff. Tip: press Shift+Tab in the "
+                       + "Claude terminal to switch the session itself to auto-accept (covers non-edit prompts too).");
+        }
     }
 
     /// <summary>

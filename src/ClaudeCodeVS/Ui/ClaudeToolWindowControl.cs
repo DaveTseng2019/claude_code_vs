@@ -179,7 +179,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         var warnStack = new StackPanel();
         warnStack.Children.Add(new TextBlock
         {
-            Text = "⚠  Debugger / semantic / test tools didn't load",
+            Text = "⚠  Workspace hooks & tools didn't load for this session",
             FontSize = 12,
             FontWeight = FontWeights.SemiBold,
             Foreground = WarnText,
@@ -496,11 +496,13 @@ internal sealed class ClaudeToolWindowControl : UserControl
         if (BridgeStatus.ToolsWarning && BridgeStatus.Connected)
         {
             _toolsWarningText.Text =
-                "Claude connected, but the vs-debug / vs-semantic / test tools aren't available this session. " +
-                "Usually Claude was launched outside the solution folder" +
+                "Claude connected, but this session never loaded the workspace's .claude configuration - " +
+                "so the edit-review diff, notifications, and the vs-debug / vs-semantic / test tools are " +
+                "all inactive. Usually Claude was started outside (or in a subfolder of) the workspace" +
                 (string.IsNullOrEmpty(BridgeStatus.Workspace) ? "" : $" ({BridgeStatus.Workspace})") +
-                ", or the project MCP servers weren't approved. Relaunch from here (pins the right folder), " +
-                "then approve the vs-debug / vs-semantic servers if prompted.";
+                ", so its project directory doesn't include our hooks - or the project MCP servers weren't " +
+                "approved. Relaunch from here (pins the right folder), or start claude at the workspace " +
+                "root; approve the vs-debug / vs-semantic servers if prompted.";
             _toolsWarningCard.Visibility = Visibility.Visible;
         }
         else
