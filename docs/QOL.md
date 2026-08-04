@@ -44,7 +44,7 @@ Under the hood, turn-end rides the token-usage hook the extension already instal
 
 Pasting a screenshot into the Claude Code CLI on Windows silently does nothing (a [long-open upstream gap](https://github.com/anthropics/claude-code/issues/26679)), and a screenshot is not a file you can drag from anywhere. The panel's attach tray closes that gap:
 
-1. Take your capture (Win+Shift+S), then click **Paste** in the panel (or press Ctrl+V with the panel focused, or drop files from Explorer onto it).
+1. Take your capture (Win+Shift+S), then click **Paste** in the panel (or press Ctrl+V with the panel focused, or drop files from Explorer onto it). Copied or dragged **text** works too (1.15.0): a big multi-line paste becomes a staged `.txt` attachment - chip, token estimate, `@`-mention - instead of an unwieldy inline paste.
 2. The extension stages the attachment and pushes an `@` reference straight into the CLI's input box - the same `at_mentioned` protocol message the official VS Code plugin uses, verified to deliver the actual pixels to the model, not just a path.
 3. Type your question around the chip and send.
 

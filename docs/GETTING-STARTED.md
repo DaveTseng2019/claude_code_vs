@@ -88,9 +88,11 @@ It stays in sync with the CLI's own permission mode (1.14.5): checked at **Launc
 
 The terminal CLI cannot take a pasted screenshot on Windows (Ctrl+V of a Win+Shift+S capture silently does nothing), and pointing it at files means typing absolute paths. The panel's attach tray covers both. Three ways in:
 
-- **Drop** one or more files from Explorer onto the *"📎 Attach"* card.
-- **Paste**: take a screenshot (Win+Shift+S), then click **Paste** - it also takes files you copied in Explorer.
+- **Drop** one or more files from Explorer onto the *"📎 Attach"* card - or a text selection dragged from any editor or browser.
+- **Paste**: take a screenshot (Win+Shift+S), then click **Paste** - it also takes files you copied in Explorer, and **copied text**: a big multi-line paste becomes a staged `.txt` attachment with its own chip and token estimate, instead of an unwieldy inline paste in the composer.
 - **Ctrl+V** anywhere in the panel does the same as the button.
+
+On multi-line prompts generally: the CLI's `[Pasted text #1 +N lines]` chip is display collapse, not loss - the model receives every line - and `\` followed by Enter types a manual newline in the composer. The tray is for when the text is big enough that a *file* is the better vehicle (visible, reusable, and Grep-able).
 
 Each attachment becomes a chip in the tray, and an `@` reference is pushed straight into the CLI's input box - you will see it appear in the terminal, ready for you to type your question around it and send. Screenshots are saved as PNGs (and the model receives the actual image, not a path guess). Chips stay until you remove them: **click a chip** to @-mention it again (the recovery if you attached while Claude was mid-turn and the reference got dropped), **✕** removes one (deleting our staged copy - files already in your workspace are referenced in place and never touched), **Clear** empties the tray. Anything attached before Claude connects shows ⏳ and sends itself the moment it does.
 

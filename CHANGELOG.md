@@ -1,8 +1,13 @@
 # Changelog
 
-## 1.14.5 - 2026-08-04
+## 1.15.0 - 2026-08-04
 
-All four points of [#17](https://github.com/firish/claude_code_vs/issues/17) (v1.14.4 feedback).
+All four points of [#17](https://github.com/firish/claude_code_vs/issues/17) (v1.14.4 feedback), plus two features that came out of the same testing loop.
+
+### Features
+
+- **Big text pastes into the tray.** Paste (or drag) multi-line text onto the panel's attach card and it becomes a staged `.txt` attachment - visible chip, token estimate, `@`-mention in the composer - instead of an unwieldy inline mega-paste. (The CLI's own `[Pasted text +N lines]` chip is display collapse, not loss, and `\`+Enter types a manual newline - but for genuinely large text, a staged file the model can Read or Grep is the better vehicle.)
+- **Run-wild and the CLI session mode now agree.** Checked at Launch, new sessions start in `--permission-mode acceptEdits`; checked mid-session, the bridge auto-allows immediately and an InfoBar tip names the CLI-side lever (Shift+Tab) since a running session's mode can't be changed from outside. When the CLI side goes permissive (shift+tab auto-accept, `bypassPermissions`), the checkbox reflects it - checked and locked, since unchecking could not re-gate edits already approved at the CLI level - and unlocks when the mode returns to default or the session ends.
 
 ### Fixes
 
@@ -11,8 +16,7 @@ All four points of [#17](https://github.com/firish/claude_code_vs/issues/17) (v1
 - **Accepted edits no longer apply twice.** In the terminal model the CLI applies an approved edit itself, so the IDE-protocol diff's Accept write-back was a second writer - visible on append-style edits, which doubled (live-verified on `claude` 2.1.221). The `openDiff` review is now review-only, like the permission path: `DIFF_ACCEPTED` closes the review and the CLI is the sole writer.
 - **Local script edits are no longer clobbered.** Every managed script's first line carries a `vs:auto-managed` marker; the installers overwrite a script only while that line is present. Delete the line to take ownership - the extension logs the skip and leaves your copy alone permanently. (Pre-1.14.5 copies are recognized by their old header and still receive this update.)
 - **Menu cleanup after upgrades** - the panel opener moved to an explicit **View > Other Windows > Claude Code** entry (the old entry relied on VS auto-listing registered tool windows, which proved unreliable across in-place updates), and **Tools** now holds exactly one entry, **Launch Claude Code** - no more two similar items opening same-named windows. Both entries carry image-catalog icons now.
-- **Run-wild and the CLI session mode now agree.** Checked at Launch, new sessions start in `--permission-mode acceptEdits`; and when the CLI side goes permissive (shift+tab auto-accept, `bypassPermissions`), the checkbox reflects it - checked and locked, since unchecking could not re-gate edits already approved at the CLI level. It unlocks when the session's mode returns to default (or the session ends). A running session's mode cannot be changed from the panel - that lever stays in the terminal.
-- Known limitation (documented): a `claude` session started in a *subfolder* of the workspace resolves its project directory elsewhere, so the workspace's `.claude` hooks (and MCP servers) are never loaded by the CLI - no gate, no bridge tools. Launch from the panel, which pins the working directory, or start `claude` at the workspace root.
+- **The config-not-loaded banner now tells the whole story.** When a connected session never loaded the workspace's `.claude` configuration (started outside or in a subfolder of the workspace), the hooks AND the MCP servers die together - the banner now says so (edit-review diff, notifications, and the vs-* tools all inactive) and names both remedies. A session started in a subfolder that never connects at all remains invisible to the extension - documented in troubleshooting.
 
 ## 1.14.4 - 2026-07-31
 

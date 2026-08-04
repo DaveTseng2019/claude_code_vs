@@ -101,6 +101,29 @@ internal static class AttachmentService
         }
     }
 
+    /// <summary>
+    /// Stage pasted/dropped TEXT as a .txt attachment - the pleasant path for "my paste is too big for
+    /// the composer" and multi-line prompt material. The text becomes a staged file with a chip, a
+    /// token estimate, and an @-mention, and the model reads it in full. (The CLI's own
+    /// "[Pasted text +N lines]" chip is display collapse, not loss - but a file is visible, reusable,
+    /// and grep-able for the truly big cases.)
+    /// </summary>
+    public static async Task StageTextAsync(string text)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(text)) return;
+            var dir = EnsureStagingDir();
+            var dest = UniquePath(dir, $"paste-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
+            File.WriteAllText(dest, text); // UTF-8, no BOM
+            await AddAndSendAsync(dest, isImage: false, wasCopied: true, Math.Max(1, (long)text.Length / 4), needsTool: false);
+        }
+        catch (Exception e)
+        {
+            Log.Warn($"attach: pasting text failed: {e.Message}");
+        }
+    }
+
     /// <summary>Re-send one chip's at_mentioned (e.g. the first send raced a busy CLI turn).</summary>
     public static Task ResendAsync(AttachmentItem item) => SendAsync(item, announce: true);
 

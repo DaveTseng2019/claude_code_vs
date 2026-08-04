@@ -260,7 +260,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         attachHeader.Children.Add(attachHint);
         var pasteBtn = MakeButton("Paste", PasteFromClipboard);
         pasteBtn.Margin = new Thickness(6, 0, 6, 0);
-        pasteBtn.ToolTip = "Paste from the clipboard: a screenshot (Win+Shift+S) or copied files. Ctrl+V in the panel works too.";
+        pasteBtn.ToolTip = "Paste from the clipboard: a screenshot (Win+Shift+S), copied files, or copied text (big multi-line text becomes a .txt attachment). Ctrl+V in the panel works too.";
         attachHeader.Children.Add(pasteBtn);
         _attachClear = MakeButton("Clear", Attachments.AttachmentService.Clear);
         _attachClear.Visibility = Visibility.Collapsed;
@@ -543,6 +543,11 @@ internal sealed class ClaudeToolWindowControl : UserControl
                 var png = EncodePng(bmp);
                 _ = Task.Run(() => Attachments.AttachmentService.StageImageBytesAsync(png));
             }
+            else if (e.Data.GetDataPresent(DataFormats.UnicodeText) && e.Data.GetData(DataFormats.UnicodeText) is string dropped)
+            {
+                // Dragged TEXT (a selection from an editor, a browser, anywhere) becomes a .txt attachment.
+                _ = Task.Run(() => Attachments.AttachmentService.StageTextAsync(dropped));
+            }
             e.Handled = true;
         }
         catch (Exception ex)
@@ -569,9 +574,16 @@ internal sealed class ClaudeToolWindowControl : UserControl
                 if (paths.Count > 0)
                     _ = Task.Run(() => Attachments.AttachmentService.StageFilesAsync(paths));
             }
+            else if (Clipboard.ContainsText() && Clipboard.GetText() is string text && !string.IsNullOrWhiteSpace(text))
+            {
+                // Big multi-line text: the CLI composer collapses it to a "[Pasted text +N lines]" chip
+                // (and huge pastes are unwieldy inline) - staged as a .txt it gets a visible chip, a
+                // token estimate, and an @-mention instead.
+                _ = Task.Run(() => Attachments.AttachmentService.StageTextAsync(text));
+            }
             else
             {
-                Log.Warn("attach: clipboard has no image or files - take a screenshot (Win+Shift+S) or copy files first.");
+                Log.Warn("attach: clipboard has no image, files, or text - copy something first (Win+Shift+S for a screenshot).");
             }
         }
         catch (Exception ex)
