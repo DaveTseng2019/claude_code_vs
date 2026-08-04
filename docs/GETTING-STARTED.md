@@ -12,7 +12,7 @@ The practical setup: install the extension, launch Claude connected to Visual St
 
 - **Visual Studio 2026.**
 - **The Claude Code CLI**, installed and authenticated. The extension makes no model calls and does no agent work itself, so it needs the CLI. See the [Claude Code docs](https://docs.claude.com/claude-code).
-- Tested against `claude` 2.1.191.
+- Tested against `claude` 2.1.221.
 
 ---
 

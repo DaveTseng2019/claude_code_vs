@@ -6,7 +6,7 @@ Bring [Claude Code](https://claude.com/claude-code) into **Visual Studio 2026**.
 
 *A fresh Claude session driving the Visual Studio debugger to find a bug that is invisible in the output, then opening the fix in the native diff.*
 
-**Status:** community project, not affiliated with Anthropic. Visual Studio 2026 only for now. Tested against `claude` 2.1.191.
+**Status:** community project, not affiliated with Anthropic. Visual Studio 2026 only for now. Tested against `claude` 2.1.221.
 
 **Jump to a feature:** [Native diff](#a-native-diff-with-one-approval-step) · [Drive the debugger](#a-debugger-claude-can-drive) · [Data breakpoints](#break-when-a-value-changes) · [Catch flaky tests](#catch-a-failing-test-even-the-flaky-ones) · [Semantic navigation](#read-code-the-way-the-compiler-does) · [Integrated terminal](#claude-in-the-ides-own-terminal) · [Attach files](#attach-a-screenshot-or-any-file) · [Claude's eyes](#claude-takes-its-own-screenshots) · [The panel](#a-live-panel)
 
@@ -139,7 +139,7 @@ A dockable Claude Code panel shows connection status, edit decisions, and token 
 
 - Visual Studio 2026.
 - The Claude Code CLI, installed and authenticated. See the [Claude Code docs](https://docs.claude.com/claude-code). This extension makes no model calls and does no agent work itself, so it needs the CLI.
-- Tested against `claude` 2.1.191.
+- Tested against `claude` 2.1.221.
 
 ## Install
 
@@ -189,7 +189,7 @@ For debugger access it adds a `UserPromptSubmit` hook that injects live break st
 ## Limitations and known issues
 
 - Visual Studio 2026 only for now. A VS 2022 backfill is planned if there is demand.
-- The integration protocol is undocumented and version-fragile, so a `claude` update could change it. Known-good: 2.1.191.
+- The integration protocol is undocumented and version-fragile, so a `claude` update could change it. Known-good: 2.1.221.
 - Diagnostics need a loaded project. The Error List and Roslyn will not analyze loose files.
 - Semantic navigation is C#/VB and needs a loaded project. It reads the Roslyn workspace, so it sees the solution open in VS rather than the CLI's working directory if they differ, and it does not cover C++ navigation.
 - Debugger features target managed (.NET) code. Reading runtime state is always on, and driving execution is opt-in. Native and C++ runtime inspection is not covered.
