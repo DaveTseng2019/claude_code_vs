@@ -262,8 +262,12 @@ internal sealed class ClaudeToolWindowControl : UserControl
         attachHeader.Children.Add(attachHint);
         var pasteBtn = MakeButton("Paste", PasteFromClipboard);
         pasteBtn.Margin = new Thickness(6, 0, 6, 0);
-        pasteBtn.ToolTip = "Paste from the clipboard: a screenshot (Win+Shift+S), copied files, or copied text (big multi-line text becomes a .txt attachment). Ctrl+V in the panel works too.";
+        pasteBtn.ToolTip = "Paste from the clipboard: a screenshot (Win+Shift+S), copied files, or copied text (opens in the composer to review/edit, then attaches as .txt). Ctrl+V in the panel works too.";
         attachHeader.Children.Add(pasteBtn);
+        var composeBtn = MakeButton("Compose", () => ComposeAndStage(""));
+        composeBtn.Margin = new Thickness(0, 0, 6, 0);
+        composeBtn.ToolTip = "Write multi-line text in an editor (line breaks, code, whatever), then attach it as a .txt with an @ reference in the Claude composer.";
+        attachHeader.Children.Add(composeBtn);
         _attachClear = MakeButton("Clear", Attachments.AttachmentService.Clear);
         _attachClear.Visibility = Visibility.Collapsed;
         attachHeader.Children.Add(_attachClear);
@@ -563,8 +567,9 @@ internal sealed class ClaudeToolWindowControl : UserControl
             }
             else if (e.Data.GetDataPresent(DataFormats.UnicodeText) && e.Data.GetData(DataFormats.UnicodeText) is string dropped)
             {
-                // Dragged TEXT (a selection from an editor, a browser, anywhere) becomes a .txt attachment.
-                _ = Task.Run(() => Attachments.AttachmentService.StageTextAsync(dropped));
+                // Dragged TEXT (a selection from an editor, a browser, anywhere) opens in the composer
+                // for review/edit, then attaches as a .txt.
+                ComposeAndStage(dropped);
             }
             e.Handled = true;
         }
@@ -594,10 +599,10 @@ internal sealed class ClaudeToolWindowControl : UserControl
             }
             else if (Clipboard.ContainsText() && Clipboard.GetText() is string text && !string.IsNullOrWhiteSpace(text))
             {
-                // Big multi-line text: the CLI composer collapses it to a "[Pasted text +N lines]" chip
-                // (and huge pastes are unwieldy inline) - staged as a .txt it gets a visible chip, a
-                // token estimate, and an @-mention instead.
-                _ = Task.Run(() => Attachments.AttachmentService.StageTextAsync(text));
+                // Text opens in the composer PRE-FILLED (review/edit before it becomes a file - pastes
+                // often need a trim or a line break), then attaches as a .txt with a chip, a token
+                // estimate, and an @-mention.
+                ComposeAndStage(text);
             }
             else
             {
@@ -607,6 +612,21 @@ internal sealed class ClaudeToolWindowControl : UserControl
         catch (Exception ex)
         {
             Log.Warn($"attach: paste failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>Open the multi-line composer (optionally pre-filled) and stage the result as a .txt attachment.</summary>
+    private static void ComposeAndStage(string initialText)
+    {
+        try
+        {
+            var text = ComposeDialog.Prompt(initialText); // modal, UI thread; null = cancelled/empty
+            if (text != null)
+                _ = Task.Run(() => Attachments.AttachmentService.StageTextAsync(text));
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"attach: composer failed: {ex.Message}");
         }
     }
 

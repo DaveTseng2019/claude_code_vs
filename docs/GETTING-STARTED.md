@@ -89,8 +89,9 @@ It stays in sync with the CLI's own permission mode (1.14.5): checked at **Launc
 The terminal CLI cannot take a pasted screenshot on Windows (Ctrl+V of a Win+Shift+S capture silently does nothing), and pointing it at files means typing absolute paths. The panel's attach tray covers both. Three ways in:
 
 - **Drop** one or more files from Explorer onto the *"📎 Attach"* card - or a text selection dragged from any editor or browser.
-- **Paste**: take a screenshot (Win+Shift+S), then click **Paste** - it also takes files you copied in Explorer, and **copied text**: a big multi-line paste becomes a staged `.txt` attachment with its own chip and token estimate, instead of an unwieldy inline paste in the composer.
-- **Ctrl+V** anywhere in the panel does the same as the button.
+- **Paste**: take a screenshot (Win+Shift+S), then click **Paste** - it also takes files you copied in Explorer, and **copied text**, which opens in an editor dialog first: review it, trim it, add line breaks (live token estimate included), then **Attach** (Ctrl+Enter) stages it as a `.txt` with its own chip.
+- **Compose** opens that same editor empty - the pleasant way to write multi-line prompt material from scratch and hand it to Claude as an `@` attachment.
+- **Ctrl+V** anywhere in the panel does the same as the Paste button.
 
 On multi-line prompts generally: the CLI's `[Pasted text #1 +N lines]` chip is display collapse, not loss - the model receives every line - and `\` followed by Enter types a manual newline in the composer. The tray is for when the text is big enough that a *file* is the better vehicle (visible, reusable, and Grep-able).
 
