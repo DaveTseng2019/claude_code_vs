@@ -38,7 +38,7 @@ On Launch, the extension writes a few helper scripts into your workspace's `.cla
 
 The dockable Claude Code panel is your status and control surface.
 
-![The Claude Code panel showing the Connected pill, the two toggles, edit and debugger stats, token and cost figures, and the activity log](images/full-panel.png)
+![The Claude Code panel showing the Connected pill, the safety-toggle row, edit and debugger stats, the attach tray, token and cost figures, and the activity log](images/claude-pannel-3.png)
 
 It shows:
 

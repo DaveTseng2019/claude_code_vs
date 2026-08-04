@@ -50,6 +50,14 @@ Pasting a screenshot into the Claude Code CLI on Windows silently does nothing (
 
 ![The attachments tray with two staged screenshots as chips, their token estimate, and the @-mention entries in the activity feed](images/upload-image.png)
 
+The text path in action - a paste opens in the composer for review (edit freely, watch the live token estimate), Attach turns it into a staged chip, and the `@` reference lands in the CLI ready for you to type around:
+
+![The composer dialog holding pasted multi-line text with a live ~94-token estimate and Attach/Cancel buttons](images/compose-box.png)
+
+![The attach tray showing the staged paste chip next to the Paste and Compose buttons, with the tray's token total](images/compose-tray.png)
+
+![The docked Claude terminal with the staged attachment's @ reference in the composer, followed by the user's own words](images/compose-cli.png)
+
 What makes the tray more than a paste button:
 
 - **Token cost up front.** Every attachment shows an estimated token cost before you send - on the chip's tooltip and totaled next to the tray. A full-screen or 4K shot lands near ~1.5k tokens (the API downscales), a tight crop costs a fraction of that, and a 2 MB JSON log announcing *≈212k tokens* is your cue to ask Claude to Grep it instead of reading it whole.

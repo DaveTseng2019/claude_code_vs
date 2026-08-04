@@ -94,6 +94,10 @@ Pasting a screenshot into the Claude Code CLI on Windows silently does nothing (
 
 ![The attachments tray with two staged screenshots as chips, their token estimate, and the @-mention entries in the activity feed](https://raw.githubusercontent.com/firish/claude_code_vs/main/docs/images/upload-image.png)
 
+Text gets a **composer**: pasting or dragging multi-line text opens an editor to review and shape it first - line breaks, trimming, a live token estimate - and **Attach** stages it as a `.txt` with its `@` reference in the CLI. The **Compose** button opens the same editor empty, which is the pleasant way to write multi-line prompt material from scratch.
+
+![The composer dialog holding pasted multi-line text with a live token estimate and Attach/Cancel buttons](https://raw.githubusercontent.com/firish/claude_code_vs/main/docs/images/compose-box.png)
+
 Every attachment shows an **estimated token cost before you send**: a tight screenshot crop costs a fraction of a full screen, and a 2 MB JSON log announcing *≈212k tokens* is your cue to ask Claude to Grep it instead of reading it whole. Formats Claude cannot read directly (Excel, video, archives) still attach - the chip is labeled, Claude gets the path, and it reaches for a script or tool on its own. Files already in your workspace are referenced in place; everything else is copied into a gitignored `.claude/attachments/`.
 
 ### Claude takes its own screenshots
@@ -110,7 +114,7 @@ Every capture is staged as a visible chip in the attachment tray and logged in t
 
 A dockable Claude Code panel shows connection status, edit decisions, and token usage with an estimated cost. It also holds the three safety toggles (apply edits without the diff, allow Claude to drive the debugger, and allow screen capture), all off by default and all reset each session, plus a **Notify** toggle (on by default) that mutes the finished/needs-input notifications.
 
-![The Claude Code panel showing the connection pill, the debugger-drive toggle, and token and cost figures](https://raw.githubusercontent.com/firish/claude_code_vs/main/docs/images/full-panel.png)
+![The Claude Code panel: connection pill, the safety-toggle row, edit and debugger stats, the attach tray with Paste and Compose, and the activity feed](https://raw.githubusercontent.com/firish/claude_code_vs/main/docs/images/claude-pannel-3.png)
 
 ## Requirements
 
