@@ -37,6 +37,7 @@ The demand for this is on the Claude Code tracker. These requests ask for what t
 - **Screen capture: Claude takes its own screenshots (opt-in)** - two gated tools give Claude eyes: capture the debugged app's window, any window by title (the browser showing your site), the VS window, or the whole screen. Captures land in the attachment tray as visible chips with a token estimate, and the tool returns a path Claude Reads with real vision - UI layouts, images, rendered pages, text in windows that are not files. Off by default behind an **Allow screen capture** toggle; every capture is logged. Full reference: [`docs/VISION.md`](docs/VISION.md).
 - **Notifications** - an in-IDE heads-up when Claude finishes responding or needs your input (a permission prompt, or it went idle waiting for you): a notification bar in Visual Studio, plus a taskbar flash when VS is in the background. For working in another window while it cooks. A panel toggle mutes it. Full reference: [`docs/QOL.md`](docs/QOL.md#notifications).
 - **Live panel** - a dockable Claude Code panel: connection status, edit decisions, and token usage with estimated cost (latest call vs cumulative session).
+- **简体中文界面** - the extension's UI (panel, dialogs, the diff Accept/Reject bar, notifications) follows Visual Studio's display language, with Simplified Chinese included. Run VS in 中文(简体) and the extension matches; anything untranslated falls back to English per-string. The `claude` CLI's own terminal text stays English (upstream). Translation corrections welcome via issue or PR.
 
 ## A closer look
 

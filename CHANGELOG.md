@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.16.0 - 2026-08-06
+
+### Features
+
+- **简体中文界面 / Simplified Chinese UI** ([#20](https://github.com/firish/claude_code_vs/issues/20)). The panel, dialogs, diff Accept/Reject bar, tooltips, and notifications now follow **Visual Studio's own display language** (Tools > Options > Environment > International Settings): run VS in 中文(简体) and the extension matches its surroundings - no setting on our side, and any string a future release hasn't translated yet falls back to English individually rather than breaking. English VS is byte-for-byte unchanged. Deliberately still English: the activity feed / Output-pane diagnostics (so bug reports stay greppable and answerable), and the `claude` CLI's own terminal chrome (upstream). The translation is maintained as part of every release; corrections are very welcome via issue or PR against `src/ClaudeCodeVS/Resources/Strings.zh-Hans.resx`.
+
 ## 1.15.0 - 2026-08-04
 
 All four points of [#17](https://github.com/firish/claude_code_vs/issues/17) (v1.14.4 feedback), plus two features that came out of the same testing loop.

@@ -50,6 +50,8 @@ It shows:
 - **Token usage and estimated cost.** The latest call and the running session, in and out tokens plus cached, with a **Show est. cost** toggle. Cost is an estimate from hardcoded per-tier prices, not billing.
 - **An activity log** of what crossed the bridge: permission decisions, diagnostics reads, tool calls, and connection events. When something looks off, this is the first place to check, and the **Output** button opens the full pane.
 
+**语言 / Language:** the panel, dialogs, diff bar, and notifications follow Visual Studio's display language (**Tools > Options > Environment > International Settings**), with **简体中文** included - no separate setting. The activity log and the `claude` terminal itself stay English (the log so bug reports are greppable; the terminal is upstream).
+
 ---
 
 ## The diff gate
