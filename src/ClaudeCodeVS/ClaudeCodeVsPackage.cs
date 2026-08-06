@@ -35,6 +35,14 @@ public sealed class ClaudeCodeVsPackage : AsyncPackage
     {
         await base.InitializeAsync(cancellationToken, progress);
 
+        // UI language BEFORE anything renders: Strings.Culture follows VS's own display language
+        // (Tools > Options > International Settings), read from the shell rather than the thread
+        // culture - UI strings get composed on background HTTP-handler threads too. Runs before the
+        // tool window can exist (VS finishes package init before creating its tool windows).
+        await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
+        InitUiCulture();
+        await TaskScheduler.Default; // hop back off the UI thread for server startup
+
         _host = new BridgeHost(this);
         await _host.StartAsync(cancellationToken);
 
@@ -46,6 +54,29 @@ public sealed class ClaudeCodeVsPackage : AsyncPackage
                 new CommandID(PackageGuids.CommandSet, PackageIds.LaunchClaude)));
             mcs.AddCommand(new MenuCommand(OnShowPanel,
                 new CommandID(PackageGuids.CommandSet, PackageIds.ShowPanel)));
+        }
+    }
+
+    /// <summary>
+    /// Point <see cref="Strings.Culture"/> at VS's display-language LCID (2052 = zh-CN resolves the
+    /// zh-Hans satellite via the standard parent-chain fallback; anything untranslated falls back to
+    /// English per-string). Any failure leaves Culture null = neutral English.
+    /// </summary>
+    private void InitUiCulture()
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        try
+        {
+            if (GetService(typeof(SUIHostLocale)) is IUIHostLocale hostLocale
+                && ErrorHandler.Succeeded(hostLocale.GetUILocale(out uint lcid))
+                && lcid > 0)
+            {
+                Strings.Culture = new System.Globalization.CultureInfo((int)lcid);
+            }
+        }
+        catch (Exception ex)
+        {
+            Protocol.Log.Warn($"UI culture detection failed, staying English: {ex.Message}");
         }
     }
 
