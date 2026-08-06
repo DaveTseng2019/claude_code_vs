@@ -33,6 +33,7 @@ internal sealed class ComposeDialog : DialogWindow
 
         SetResourceReference(BackgroundProperty, VsBrushes.ToolWindowBackgroundKey);
         SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey);
+        FontScale.BindRoot(this);
 
         var grid = new Grid { Margin = new Thickness(12) };
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -69,7 +70,7 @@ internal sealed class ComposeDialog : DialogWindow
         Grid.SetRow(_box, 1);
 
         var footer = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
-        _estimate = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Opacity = 0.65, FontSize = 11.5 };
+        _estimate = Font(new TextBlock { VerticalAlignment = VerticalAlignment.Center, Opacity = 0.65 }, 0.96);
         _estimate.SetResourceReference(TextBlock.ForegroundProperty, VsBrushes.ToolWindowTextKey);
         footer.Children.Add(_estimate);
 
@@ -114,6 +115,10 @@ internal sealed class ComposeDialog : DialogWindow
         var text = dlg._box.Text;
         return string.IsNullOrWhiteSpace(text) ? null : text;
     }
+
+    /// <summary>Scales an element's FontSize relative to VS's Environment Font size (see <see cref="FontScale"/>).</summary>
+    private static T Font<T>(T el, double ratio) where T : FrameworkElement
+        => FontScale.Bind(el, typeof(ComposeDialog), ratio);
 
     /// <summary>Minimal ICommand for the Ctrl+Enter accelerator (no framework helper in scope).</summary>
     private sealed class RelayCommand : ICommand
