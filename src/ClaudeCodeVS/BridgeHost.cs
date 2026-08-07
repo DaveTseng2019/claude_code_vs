@@ -610,6 +610,17 @@ internal sealed class BridgeHost : IDisposable
 
         string? workspace = await GetWorkspaceRootAsync();
 
+        // The Relaunch button's whole promise is "pins the right folder" - if VS itself has no
+        // folder/workspace open, there is no right folder to pin, so relaunching would just spawn
+        // another equally-unpinned session that hits the same "hooks didn't load" warning again,
+        // inviting an endless click-relaunch-fail loop. Refuse instead of piling up dead terminals.
+        if (forceRelaunch && string.IsNullOrEmpty(workspace))
+        {
+            Log.Warn("Relaunch Claude Code: no folder/workspace open in Visual Studio - open one " +
+                     "(File > Open > Folder) so the CLI has a project to pin to, then relaunch.");
+            return;
+        }
+
         // Auto-install the single-gate PreToolUse hook into the workspace so accepting/rejecting our
         // diff is the sole edit gate (no terminal prompt). Best-effort; idempotent; safe to re-run.
         // Also register the debug PULL MCP server (.mcp.json + stdio shim) for Phase 2 pull-on-demand.
