@@ -43,6 +43,52 @@ internal static class SelectionService
         lock (Gate) return (_lastNonEmpty ?? _current).ToJson();
     }
 
+    /// <summary>The live selection snapshot, for the editor context-menu commands (Explain / Add to Chat).</summary>
+    public static SelectionInfo Current
+    {
+        get { lock (Gate) return _current; }
+    }
+
+    /// <summary>
+    /// Push an at_mentioned for the current selection (file + line range), or the whole file if nothing
+    /// is selected - the "Add to Chat" context-menu command. Insert-not-submit, same as every other
+    /// at_mentioned in this codebase (CLAUDE.md).
+    /// </summary>
+    public static async Task MentionCurrentAsync()
+    {
+        var server = _server;
+        if (server is null || !server.HasConnections)
+        {
+            Log.Warn("Add to Chat: Claude isn't connected.");
+            return;
+        }
+
+        var info = Current;
+        if (info.FilePath is null)
+        {
+            Log.Warn("Add to Chat: no active file.");
+            return;
+        }
+
+        var @params = new JObject { ["filePath"] = info.FilePath };
+        if (!info.IsEmpty)
+        {
+            @params["lineStart"] = info.StartLine;
+            @params["lineEnd"] = info.EndLine;
+        }
+
+        try
+        {
+            await server.BroadcastNotificationAsync("at_mentioned", @params, CancellationToken.None);
+            var range = info.IsEmpty ? "" : $" (lines {info.StartLine + 1}-{info.EndLine + 1})";
+            Log.Info($"Add to Chat: mentioned '{System.IO.Path.GetFileName(info.FilePath)}'{range}.");
+        }
+        catch (Exception e)
+        {
+            Log.Warn($"Add to Chat failed: {e.Message}");
+        }
+    }
+
     /// <summary>Record a fresh selection from a focused view and (debounced) push selection_changed.</summary>
     public static void Update(IWpfTextView view)
     {
