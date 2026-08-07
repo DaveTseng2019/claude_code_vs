@@ -60,6 +60,7 @@ internal sealed class BridgeHost : IDisposable
         Log.Sink = (level, msg) => { pane.WriteLine(level, msg); Ui.BridgeStatus.Append(level, msg); };
         Ui.BridgeStatus.LaunchAction = () => LaunchClaudeAsync();
         Ui.BridgeStatus.LaunchExternalAction = () => LaunchClaudeAsync(forceExternal: true);
+        Ui.BridgeStatus.RelaunchAction = () => LaunchClaudeAsync(forceRelaunch: true);
         Ui.BridgeStatus.ShowOutputAction = () => pane.Activate(); // panel's "Output" button (UI thread)
         Log.Info("Claude Code bridge starting…");
 
@@ -585,11 +586,21 @@ internal sealed class BridgeHost : IDisposable
     /// Prefers VS's native docked Terminal; <paramref name="forceExternal"/> skips it for users who want
     /// a standalone console window (which, unlike the docked tab, survives closing VS).
     /// </summary>
-    public async Task LaunchClaudeAsync(bool forceExternal = false)
+    public async Task LaunchClaudeAsync(bool forceExternal = false, bool forceRelaunch = false)
     {
         if (_lockfile is null)
         {
             Log.Warn("Launch Claude Code: bridge isn't running yet.");
+            return;
+        }
+
+        // Guards the plain Launch button against piling up redundant terminals on repeat clicks while a
+        // session is already connected. The "hooks & tools didn't load" banner's Relaunch button passes
+        // forceRelaunch=true to bypass this - that flow is a deliberate re-pin of a *misconfigured*
+        // connected session, not an accidental duplicate.
+        if (!forceRelaunch && _server?.HasConnections == true)
+        {
+            Log.Warn("Launch Claude Code: already connected - not opening another terminal.");
             return;
         }
 
