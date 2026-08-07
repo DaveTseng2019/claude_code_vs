@@ -96,7 +96,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         // One flat WrapPanel for all four buttons (no DockPanel right-docking): docking Clear/Output to
         // the right pre-claims width, which clipped the Launch buttons mid-text at narrow panel widths.
         // Wrapping keeps every button whole and reachable at any width; right-alignment wasn't worth that.
-        var toolbar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+        var toolbar = new WrapPanel { Margin = new Thickness(0) };
         toolbar.Children.Add(MakeButton("Launch Claude Code", () => { _ = BridgeStatus.LaunchAction?.Invoke(); }));
         var launchExternal = MakeButton("External console", () => { _ = BridgeStatus.LaunchExternalAction?.Invoke(); });
         launchExternal.ToolTip = "Launch Claude Code in a separate console window instead of the docked terminal. Unlike the docked tab, it survives closing Visual Studio.";
@@ -167,7 +167,6 @@ internal sealed class ClaudeToolWindowControl : UserControl
         toggles.Children.Add(_notify);
 
         var toolbarStack = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
-        toolbar.Margin = new Thickness(0);
         toolbarStack.Children.Add(toolbar);
         toolbarStack.Children.Add(toggles);
         Grid.SetRow(toolbarStack, 1);

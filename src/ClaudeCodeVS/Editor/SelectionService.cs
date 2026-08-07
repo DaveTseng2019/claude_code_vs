@@ -70,7 +70,8 @@ internal static class SelectionService
             return;
         }
 
-        var @params = new JObject { ["filePath"] = info.FilePath };
+        var mentionPath = Attachments.AttachmentService.ToWorkspaceRelative(info.FilePath) ?? info.FilePath;
+        var @params = new JObject { ["filePath"] = mentionPath };
         if (!info.IsEmpty)
         {
             @params["lineStart"] = info.StartLine;
