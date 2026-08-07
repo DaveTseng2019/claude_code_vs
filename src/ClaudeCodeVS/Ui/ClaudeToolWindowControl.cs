@@ -186,7 +186,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         _toolsWarningText = Font(new TextBlock { Opacity = 0.85, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0) }, 0.96);
         warnStack.Children.Add(_toolsWarningText);
         var warnButtons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-        warnButtons.Children.Add(MakeButton("Relaunch Claude Code", () => { _ = BridgeStatus.LaunchAction?.Invoke(); }));
+        warnButtons.Children.Add(MakeButton("Relaunch Claude Code", () => { _ = BridgeStatus.RelaunchAction?.Invoke(); }));
         warnStack.Children.Add(warnButtons);
         _toolsWarningCard = new Border
         {

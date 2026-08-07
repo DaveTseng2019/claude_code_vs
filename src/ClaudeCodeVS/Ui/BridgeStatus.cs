@@ -185,6 +185,10 @@ internal static class BridgeStatus
     /// terminal - for users who want claude in its own window, or one that survives closing VS).</summary>
     public static Func<Task>? LaunchExternalAction { get; set; }
 
+    /// <summary>Set by BridgeHost so the "hooks & tools didn't load" banner can start a correctly-pinned
+    /// session even though one is already connected - bypasses LaunchAction's already-connected guard.</summary>
+    public static Func<Task>? RelaunchAction { get; set; }
+
     /// <summary>Set by BridgeHost so the panel can bring the verbose Output pane forward (UI thread).</summary>
     public static Action? ShowOutputAction { get; set; }
 
