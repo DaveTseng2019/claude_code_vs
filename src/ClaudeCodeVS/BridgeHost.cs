@@ -594,11 +594,12 @@ internal sealed class BridgeHost : IDisposable
             return;
         }
 
-        // Guards the plain Launch button against piling up redundant terminals on repeat clicks while a
-        // session is already connected. The "hooks & tools didn't load" banner's Relaunch button passes
-        // forceRelaunch=true to bypass this - that flow is a deliberate re-pin of a *misconfigured*
-        // connected session, not an accidental duplicate.
-        if (!forceRelaunch && _server?.HasConnections == true)
+        // Guards the plain (docked) Launch button against piling up redundant terminals on repeat clicks
+        // while a session is already connected. External console is exempt - it's a standalone window the
+        // user explicitly asked for each time, and upstream allows unlimited concurrent external consoles.
+        // The "hooks & tools didn't load" banner's Relaunch button passes forceRelaunch=true to bypass this
+        // too - that flow is a deliberate re-pin of a *misconfigured* connected session, not an accidental duplicate.
+        if (!forceExternal && !forceRelaunch && _server?.HasConnections == true)
         {
             Log.Warn("Launch Claude Code: already connected - not opening another terminal.");
             return;
