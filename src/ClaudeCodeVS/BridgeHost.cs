@@ -31,6 +31,15 @@ internal sealed class BridgeHost : IDisposable
     private Debugging.DebuggerDriver? _driver; // Phase 3: drives the debugger (continue/step/breakpoints)
     private Debugging.DataBreakpointBridge? _dataBpBridge; // managed data breakpoints (Concord component bridge)
 
+    // When the last guarded (docked) launch was fired. HasConnections only flips once the CLI's WebSocket
+    // lands, so between the click and that handshake the connection guard alone still lets repeat clicks
+    // pile up terminals; this covers that window. Read/written on the UI thread only (both callers are
+    // menu/button handlers) and before any await, so no synchronization is needed.
+    // notes: a cooldown, not a real "starting" signal - the CLI gives us nothing to await on. Sized to
+    // VsTerminalLauncher's ~10s stall timeout; widen it if cold starts outgrow it.
+    private static readonly TimeSpan LaunchCooldown = TimeSpan.FromSeconds(10);
+    private DateTime _lastLaunchUtc = DateTime.MinValue;
+
     // "Connected but the PULL tools didn't load" detection. The IDE WebSocket auto-connects at CLI
     // startup; if the CLI also loaded our MCP servers, the stdio shim's handshake hits /mcp within a
     // couple seconds. If nothing hits /mcp within this window after a connect, the vs-debug/vs-semantic/
@@ -585,6 +594,9 @@ internal sealed class BridgeHost : IDisposable
     /// workspace root, so the CLI auto-connects (no /ide) and writes files into the right repo (fixes B2).
     /// Prefers VS's native docked Terminal; <paramref name="forceExternal"/> skips it for users who want
     /// a standalone console window (which, unlike the docked tab, survives closing VS).
+    /// <paramref name="forceRelaunch"/> bypasses the duplicate-terminal guard below - it's the "hooks &amp;
+    /// tools didn't load" banner's Relaunch button deliberately re-pinning a misconfigured session, which
+    /// is exactly the case the guard would otherwise block; it refuses instead when no workspace is open.
     /// </summary>
     public async Task LaunchClaudeAsync(bool forceExternal = false, bool forceRelaunch = false)
     {
@@ -599,10 +611,20 @@ internal sealed class BridgeHost : IDisposable
         // user explicitly asked for each time, and upstream allows unlimited concurrent external consoles.
         // The "hooks & tools didn't load" banner's Relaunch button passes forceRelaunch=true to bypass this
         // too - that flow is a deliberate re-pin of a *misconfigured* connected session, not an accidental duplicate.
-        if (!forceExternal && !forceRelaunch && _server?.HasConnections == true)
+        if (!forceExternal && !forceRelaunch)
         {
-            Log.Warn("Launch Claude Code: already connected - not opening another terminal.");
-            return;
+            if (_server?.HasConnections == true)
+            {
+                Log.Warn("Launch Claude Code: already connected - not opening another terminal.");
+                return;
+            }
+            // …and the same for a session that's launched but hasn't finished connecting yet.
+            if (DateTime.UtcNow - _lastLaunchUtc < LaunchCooldown)
+            {
+                Log.Warn("Launch Claude Code: a session is still starting - give it a few seconds.");
+                return;
+            }
+            _lastLaunchUtc = DateTime.UtcNow;
         }
 
         // Reap zombie lockfiles (dead/recycled-PID instances) before launching, so the CLI's /ide and
