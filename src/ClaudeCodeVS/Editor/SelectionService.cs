@@ -75,13 +75,13 @@ internal static class SelectionService
         if (!info.IsEmpty)
         {
             @params["lineStart"] = info.StartLine;
-            @params["lineEnd"] = info.EndLine;
+            @params["lineEnd"] = info.EndLineInclusive;
         }
 
         try
         {
             await server.BroadcastNotificationAsync("at_mentioned", @params, CancellationToken.None);
-            var range = info.IsEmpty ? "" : $" (lines {info.StartLine + 1}-{info.EndLine + 1})";
+            var range = info.IsEmpty ? "" : $" (lines {info.StartLine + 1}-{info.EndLineInclusive + 1})";
             Log.Info($"Add to Chat: mentioned '{System.IO.Path.GetFileName(info.FilePath)}'{range}.");
         }
         catch (Exception e)
@@ -144,6 +144,14 @@ internal sealed class SelectionInfo
     public int EndChar { get; }
 
     public bool IsEmpty => Text.Length == 0;
+
+    /// <summary>
+    /// The last line the selection actually covers. <see cref="EndLine"/> is LSP-shaped (exclusive), so
+    /// selecting whole lines parks the end at column 0 of the NEXT line - reporting that one verbatim
+    /// would claim one line too many. Only for human-facing ranges and at_mentioned; the
+    /// <c>selection_changed</c> / getCurrentSelection JSON keeps the exclusive LSP coordinates.
+    /// </summary>
+    public int EndLineInclusive => EndChar == 0 && EndLine > StartLine ? EndLine - 1 : EndLine;
 
     public SelectionInfo(string text, string? filePath, int startLine, int startChar, int endLine, int endChar)
     {

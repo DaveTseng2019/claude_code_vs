@@ -84,7 +84,7 @@ public sealed class ClaudeCodeVsPackage : AsyncPackage
         }
         var header = sel.FilePath is null
             ? "Explain this code:"
-            : $"Explain this code from {System.IO.Path.GetFileName(sel.FilePath)} (lines {sel.StartLine + 1}-{sel.EndLine + 1}):";
+            : $"Explain this code from {System.IO.Path.GetFileName(sel.FilePath)} (lines {sel.StartLine + 1}-{sel.EndLineInclusive + 1}):";
         JoinableTaskFactory.RunAsync(() => Attachments.AttachmentService.StageTextAsync(header + "\n\n" + sel.Text))
             .FileAndForget("claudecodevs/explain");
     }
