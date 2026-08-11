@@ -100,7 +100,7 @@ public sealed class ClaudeCodeVsPackage : AsyncPackage
             ErrorHandler.ThrowOnFailure(frame.Show());
     }
 
-    // Editor right-click ("Claude Actions" submenu): Explain stages the selection as a text attachment
+    // Editor right-click ("Claude Code" submenu): Explain stages the selection as a text attachment
     // with an instruction header (same insert-not-submit staging as a pasted prompt); Add to Chat just
     // @-mentions the file/line-range in place. Both read SelectionService.Current, kept live by the
     // MEF TextViewListener.

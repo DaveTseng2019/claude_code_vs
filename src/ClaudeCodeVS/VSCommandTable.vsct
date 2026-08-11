@@ -17,20 +17,23 @@
         <Parent guid="guidClaudeCmdSet" id="ClaudeCtxMenu" />
       </Group>
       <!-- The Menu below can't be parented directly to a menu ID - it needs a Group in between,
-           same as ClaudeMenuGroup does for the Tools menu placement above. Low priority so this
-           group (and the "Claude Actions" submenu in it) sorts to the TOP of the context menu. -->
-      <Group guid="guidClaudeCmdSet" id="ClaudeCtxTopGroup" priority="0x0001">
+           same as ClaudeMenuGroup does for the Tools menu placement above. MID priority on purpose:
+           the code editor's right-click menu is the most muscle-memory-sensitive surface in VS, so
+           the submenu sits below the navigation block (Go To Definition etc.), roughly where
+           Copilot's entries live - never at the very top. -->
+      <Group guid="guidClaudeCmdSet" id="ClaudeCtxTopGroup" priority="0x0200">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
       </Group>
     </Groups>
 
-    <!-- Editor right-click submenu: "Claude Actions" -> Explain / Add to Chat. -->
+    <!-- Editor right-click submenu: "Claude Code" -> Explain / Add to Chat. Named for the brand,
+         matching the Tools and View > Other Windows entries (one brand, not a third variant). -->
     <Menus>
       <Menu guid="guidClaudeCmdSet" id="ClaudeCtxMenu" priority="0x0001" type="Menu">
         <Parent guid="guidClaudeCmdSet" id="ClaudeCtxTopGroup" />
         <Strings>
-          <ButtonText>Claude Actions</ButtonText>
-          <CommandName>Claude Actions</CommandName>
+          <ButtonText>Claude Code</ButtonText>
+          <CommandName>Claude Code</CommandName>
         </Strings>
       </Menu>
     </Menus>
