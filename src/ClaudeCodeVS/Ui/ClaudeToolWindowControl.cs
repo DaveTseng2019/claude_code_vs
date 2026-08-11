@@ -94,13 +94,13 @@ internal sealed class ClaudeToolWindowControl : UserControl
         var toolbar = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
         var right = new StackPanel { Orientation = Orientation.Horizontal };
         DockPanel.SetDock(right, Dock.Right);
-        right.Children.Add(MakeButton("Clear", () => _feed!.Items.Clear()));
-        right.Children.Add(MakeButton("Output", () => { try { BridgeStatus.ShowOutputAction?.Invoke(); } catch { } }));
+        right.Children.Add(MakeButton(Strings.BtnClear, () => _feed!.Items.Clear()));
+        right.Children.Add(MakeButton(Strings.BtnOutput, () => { try { BridgeStatus.ShowOutputAction?.Invoke(); } catch { } }));
 
         var left = new StackPanel { Orientation = Orientation.Horizontal };
-        left.Children.Add(MakeButton("Launch Claude Code", () => { _ = BridgeStatus.LaunchAction?.Invoke(); }));
-        var launchExternal = MakeButton("External console", () => { _ = BridgeStatus.LaunchExternalAction?.Invoke(); });
-        launchExternal.ToolTip = "Launch Claude Code in a separate console window instead of the docked terminal. Unlike the docked tab, it survives closing Visual Studio.";
+        left.Children.Add(MakeButton(Strings.BtnLaunch, () => { _ = BridgeStatus.LaunchAction?.Invoke(); }));
+        var launchExternal = MakeButton(Strings.BtnExternalConsole, () => { _ = BridgeStatus.LaunchExternalAction?.Invoke(); });
+        launchExternal.ToolTip = Strings.TipExternalConsole;
         left.Children.Add(launchExternal);
 
         // The toggles get their own WRAPPING row: four checkboxes stopped fitting beside the buttons at
@@ -109,8 +109,8 @@ internal sealed class ClaudeToolWindowControl : UserControl
         var toggles = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
         _autoAccept = new CheckBox
         {
-            Content = "Auto-accept (run wild)",
-            ToolTip = "Apply edits without opening the diff. Resets when VS restarts.",
+            Content = Strings.ToggleAutoAccept,
+            ToolTip = Strings.TipAutoAccept,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 14, 2),
         };
@@ -125,8 +125,8 @@ internal sealed class ClaudeToolWindowControl : UserControl
         // session (same in-memory safety model as auto-accept) - model-controlled execution is opt-in.
         _allowDrive = new CheckBox
         {
-            Content = "Allow Claude to drive debugger",
-            ToolTip = "Let Claude continue/step and set breakpoints while paused. Resets when VS restarts.",
+            Content = Strings.ToggleAllowDrive,
+            ToolTip = Strings.TipAllowDrive,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 14, 2),
         };
@@ -140,8 +140,8 @@ internal sealed class ClaudeToolWindowControl : UserControl
         // desktop is a safety decision, so it is never left on across sessions.
         _allowCapture = new CheckBox
         {
-            Content = "Allow screen capture",
-            ToolTip = "Let Claude capture the debugged app's window, a window by title (e.g. your browser), or the screen as image attachments. Every capture is logged and staged as a visible chip. Resets when VS restarts.",
+            Content = Strings.ToggleAllowCapture,
+            ToolTip = Strings.TipAllowCapture,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 14, 2),
         };
@@ -154,8 +154,8 @@ internal sealed class ClaudeToolWindowControl : UserControl
         // a turn or needs input. A convenience, not a safety gate, so unlike the two above it defaults ON.
         _notify = new CheckBox
         {
-            Content = "Notify",
-            ToolTip = "Show a notification bar (and flash the taskbar when VS is in the background) when Claude finishes responding or needs your input.",
+            Content = Strings.ToggleNotify,
+            ToolTip = Strings.TipNotify,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 14, 2),
             IsChecked = BridgeStatus.NotifyEnabled,
@@ -180,7 +180,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         var warnStack = new StackPanel();
         _toolsWarningTitle = new TextBlock
         {
-            Text = "⚠  Workspace hooks & tools didn't load for this session",
+            Text = Strings.BannerConfigTitle,
             FontSize = 12,
             FontWeight = FontWeights.SemiBold,
             Foreground = WarnText,
@@ -190,7 +190,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         _toolsWarningText = new TextBlock { FontSize = 11.5, Opacity = 0.85, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0) };
         warnStack.Children.Add(_toolsWarningText);
         var warnButtons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-        warnButtons.Children.Add(MakeButton("Relaunch Claude Code", () => { _ = BridgeStatus.LaunchAction?.Invoke(); }));
+        warnButtons.Children.Add(MakeButton(Strings.BtnRelaunch, () => { _ = BridgeStatus.LaunchAction?.Invoke(); }));
         warnStack.Children.Add(warnButtons);
         _toolsWarningCard = new Border
         {
@@ -212,7 +212,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         _sessionLine = new TextBlock { FontSize = 12, Opacity = 0.9, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) };
 
         // Cost is an estimate, so it's gated behind a toggle rather than shown by default.
-        _costButton = MakeButton("≈ Show est. cost", ToggleCost);
+        _costButton = MakeButton(Strings.BtnShowCost, ToggleCost);
         _costText = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Opacity = 0.9, Margin = new Thickness(8, 0, 0, 0), Visibility = Visibility.Collapsed };
         _costRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0), Visibility = Visibility.Collapsed };
         _costRow.Children.Add(_costButton);
@@ -253,22 +253,22 @@ internal sealed class ClaudeToolWindowControl : UserControl
         // CLI's composer with no path typing. Chips show what's staged; × removes, click re-mentions.
         var attachHint = new TextBlock
         {
-            Text = "📎  Attach — drop images/files here, or",
+            Text = Strings.AttachHint,
             FontSize = 11.5,
             Opacity = 0.75,
             VerticalAlignment = VerticalAlignment.Center,
         };
         var attachHeader = new StackPanel { Orientation = Orientation.Horizontal };
         attachHeader.Children.Add(attachHint);
-        var pasteBtn = MakeButton("Paste", PasteFromClipboard);
+        var pasteBtn = MakeButton(Strings.BtnPaste, PasteFromClipboard);
         pasteBtn.Margin = new Thickness(6, 0, 6, 0);
-        pasteBtn.ToolTip = "Paste from the clipboard: a screenshot (Win+Shift+S), copied files, or copied text (opens in the composer to review/edit, then attaches as .txt). Ctrl+V in the panel works too.";
+        pasteBtn.ToolTip = Strings.TipPaste;
         attachHeader.Children.Add(pasteBtn);
-        var composeBtn = MakeButton("Compose", () => ComposeAndStage(""));
+        var composeBtn = MakeButton(Strings.BtnCompose, () => ComposeAndStage(""));
         composeBtn.Margin = new Thickness(0, 0, 6, 0);
-        composeBtn.ToolTip = "Write multi-line text in an editor (line breaks, code, whatever), then attach it as a .txt with an @ reference in the Claude composer.";
+        composeBtn.ToolTip = Strings.TipCompose;
         attachHeader.Children.Add(composeBtn);
-        _attachClear = MakeButton("Clear", Attachments.AttachmentService.Clear);
+        _attachClear = MakeButton(Strings.BtnClear, Attachments.AttachmentService.Clear);
         _attachClear.Visibility = Visibility.Collapsed;
         attachHeader.Children.Add(_attachClear);
         // A live "what will this cost" readout for the staged set - same estimate language as the cost row.
@@ -305,7 +305,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         CommandBindings.Add(new CommandBinding(ApplicationCommands.Paste, (s, e) => PasteFromClipboard()));
 
         // ---- Row 6: feed label ----
-        var feedLabel = new TextBlock { Text = "ACTIVITY", FontSize = 10, FontWeight = FontWeights.SemiBold, Opacity = 0.55, Margin = new Thickness(2, 0, 0, 4) };
+        var feedLabel = new TextBlock { Text = Strings.FeedLabel, FontSize = 10, FontWeight = FontWeights.SemiBold, Opacity = 0.55, Margin = new Thickness(2, 0, 0, 4) };
         Grid.SetRow(feedLabel, 6);
 
         // ---- Row 7: curated activity feed ----
@@ -411,12 +411,12 @@ internal sealed class ClaudeToolWindowControl : UserControl
             {
                 _autoAccept.IsChecked = true;
                 _autoAccept.IsEnabled = false;
-                _autoAccept.ToolTip = $"Edits are pre-approved by the CLI session (permission mode '{BridgeStatus.CliPermissionMode}'). Change it in the terminal (shift+tab), or start a new session.";
+                _autoAccept.ToolTip = string.Format(Strings.TipAutoAcceptLocked, BridgeStatus.CliPermissionMode);
             }
             else
             {
                 _autoAccept.IsEnabled = true;
-                _autoAccept.ToolTip = "Apply edits without opening the diff (and launch new sessions in acceptEdits). Resets when VS restarts.";
+                _autoAccept.ToolTip = Strings.TipAutoAccept;
                 if (_autoAccept.IsChecked != BridgeStatus.AutoAcceptEdits)
                     _autoAccept.IsChecked = BridgeStatus.AutoAcceptEdits;
             }
@@ -437,26 +437,26 @@ internal sealed class ClaudeToolWindowControl : UserControl
         if (BridgeStatus.Port is not int port)
         {
             _dot.Fill = DotIdle;
-            _statusLine.Text = "Starting…";
+            _statusLine.Text = Strings.StatusStarting;
             _endpointLine.Text = "";
         }
         else if (BridgeStatus.Connected)
         {
             _dot.Fill = DotConnected;
             var up = BridgeStatus.ConnectedSince is DateTime since ? "  ·  " + Uptime(since) : "";
-            _statusLine.Text = "Connected" + up;
-            _endpointLine.Text = $"port {port}  ·  {Workspace()}";
+            _statusLine.Text = Strings.StatusConnected + up;
+            _endpointLine.Text = string.Format(Strings.EndpointFormat, port, Workspace());
         }
         else
         {
             _dot.Fill = DotWaiting;
-            _statusLine.Text = "Waiting for CLI";
-            _endpointLine.Text = $"port {port}  ·  {Workspace()}";
+            _statusLine.Text = Strings.StatusWaiting;
+            _endpointLine.Text = string.Format(Strings.EndpointFormat, port, Workspace());
         }
 
         // Stats card.
-        _editsLine.Text = $"Edits   ✓ {BridgeStatus.EditsAccepted} accepted    ✗ {BridgeStatus.EditsRejected} rejected";
-        _debugLine.Text = $"Debugger   {BridgeStatus.DebugInspects} inspected   ·   {BridgeStatus.DebugDrives} driven";
+        _editsLine.Text = string.Format(Strings.StatsEdits, BridgeStatus.EditsAccepted, BridgeStatus.EditsRejected);
+        _debugLine.Text = string.Format(Strings.StatsDebug, BridgeStatus.DebugInspects, BridgeStatus.DebugDrives);
 
         // Tokens are always shown; cost (an estimate) sits behind a toggle. We show the latest call
         // and the cumulative session separately, since the transcript spans the whole conversation.
@@ -464,20 +464,20 @@ internal sealed class ClaudeToolWindowControl : UserControl
         var session = BridgeStatus.Session;
         var model = string.IsNullOrEmpty(BridgeStatus.Model) ? "" : "  ·  " + ShortModel(BridgeStatus.Model!);
         _latestLine.Text =
-            $"Latest    ↑ {Tok(latest.Input)} in   ↓ {Tok(latest.Output)} out   ⚡ {Tok(latest.CacheRead)} cached";
+            string.Format(Strings.StatsLatest, Tok(latest.Input), Tok(latest.Output), Tok(latest.CacheRead));
         _sessionLine.Text =
-            $"Session   ↑ {Tok(session.Input)} in   ↓ {Tok(session.Output)} out   ⚡ {Tok(session.CacheRead)} cached" +
-            (BridgeStatus.Turns > 0 ? $"  ·  {BridgeStatus.Turns} turns{model}" : "");
+            string.Format(Strings.StatsSession, Tok(session.Input), Tok(session.Output), Tok(session.CacheRead)) +
+            (BridgeStatus.Turns > 0 ? string.Format(Strings.StatsTurns, BridgeStatus.Turns, model) : "");
         _latestLine.Opacity = BridgeStatus.HasUsage ? 0.9 : 0.55;
         _sessionLine.Opacity = BridgeStatus.HasUsage ? 0.9 : 0.55;
 
         if (BridgeStatus.HasUsage)
         {
             _costRow.Visibility = Visibility.Visible;
-            _costButton.Content = _showCost ? "Hide cost" : "≈ Show est. cost";
+            _costButton.Content = _showCost ? Strings.BtnHideCost : Strings.BtnShowCost;
             _costText.Visibility = _showCost ? Visibility.Visible : Visibility.Collapsed;
             if (_showCost)
-                _costText.Text = $"≈ ${session.CostUsd:0.00} session  ·  ${latest.CostUsd:0.00} latest  (estimate)";
+                _costText.Text = string.Format(Strings.CostFormat, session.CostUsd, latest.CostUsd);
         }
         else
         {
@@ -494,7 +494,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         {
             var names = new System.Collections.Generic.List<string>();
             foreach (var p in pending) names.Add(System.IO.Path.GetFileName(p));
-            _pendingText.Text = $"⏳ Awaiting your review:  {string.Join(",  ", names)}";
+            _pendingText.Text = string.Format(Strings.PendingFormat, string.Join(",  ", names));
             _pendingCard.Visibility = Visibility.Visible;
         }
 
@@ -505,26 +505,16 @@ internal sealed class ClaudeToolWindowControl : UserControl
         // configuration at all. Only meaningful in their respective connection states.
         if (BridgeStatus.HooksOnlyWarning && !BridgeStatus.Connected)
         {
-            _toolsWarningTitle.Text = "⚠  A Claude session is running, but not connected to Visual Studio";
-            _toolsWarningText.Text =
-                "Its hooks are reaching this workspace's bridge (token stats update), but the session was " +
-                "launched outside the extension and never connected the IDE channel - so edits won't open " +
-                "the review diff and selection isn't shared. Run /ide in that Claude terminal and pick " +
-                "Visual Studio (works from any folder inside the workspace), or relaunch from here. The " +
-                "vs-debug / vs-semantic tools additionally need the session started at the workspace root.";
+            _toolsWarningTitle.Text = Strings.BannerHooksOnlyTitle;
+            _toolsWarningText.Text = Strings.BannerHooksOnlyText;
             _toolsWarningCard.Visibility = Visibility.Visible;
         }
         else if (BridgeStatus.ToolsWarning && BridgeStatus.Connected)
         {
-            _toolsWarningTitle.Text = "⚠  Workspace hooks & tools didn't load for this session";
-            _toolsWarningText.Text =
-                "Claude connected, but this session never loaded the workspace's .claude configuration - " +
-                "so the edit-review diff, notifications, and the vs-debug / vs-semantic / test tools are " +
-                "all inactive. Usually Claude was started outside (or in a subfolder of) the workspace" +
-                (string.IsNullOrEmpty(BridgeStatus.Workspace) ? "" : $" ({BridgeStatus.Workspace})") +
-                ", so its project directory doesn't include our hooks - or the project MCP servers weren't " +
-                "approved. Relaunch from here (pins the right folder), or start claude at the workspace " +
-                "root; approve the vs-debug / vs-semantic servers if prompted.";
+            _toolsWarningTitle.Text = Strings.BannerConfigTitle;
+            // {0} = the optional " (workspace path)" parenthetical after "the workspace".
+            _toolsWarningText.Text = string.Format(Strings.BannerConfigText,
+                string.IsNullOrEmpty(BridgeStatus.Workspace) ? "" : $" ({BridgeStatus.Workspace})");
             _toolsWarningCard.Visibility = Visibility.Visible;
         }
         else
@@ -657,22 +647,22 @@ internal sealed class ClaudeToolWindowControl : UserControl
         }
         _attachSummary.Visibility = items.Count > 0 && estSum > 0 ? Visibility.Visible : Visibility.Collapsed;
         if (estSum > 0)
-            _attachSummary.Text = $"≈ {Tok(estSum)}{(estPartial ? "+" : "")} tok when read";
+            _attachSummary.Text = string.Format(Strings.AttachSummaryFormat, Tok(estSum), estPartial ? "+" : "");
 
         foreach (var item in items)
         {
             var it = item; // capture per chip
-            var est = it.EstTokens is long e ? $"\n≈ {Tok(e)} tokens when read (estimate)" : "";
-            var toolNote = it.NeedsTool ? "\nNot a format Claude reads directly - it will use a script/tool on it." : "";
+            var est = it.EstTokens is long e ? "\n" + string.Format(Strings.ChipEstimateFormat, Tok(e)) : "";
+            var toolNote = it.NeedsTool ? "\n" + Strings.ChipNeedsTool : "";
             var name = new TextBlock
             {
                 Text = (it.IsImage ? "🖼 " : it.NeedsTool ? "🧰 " : "📄 ") + it.FileName + (it.Sent ? "" : "  ⏳"),
                 FontSize = 11.5,
                 VerticalAlignment = VerticalAlignment.Center,
                 Cursor = Cursors.Hand,
-                ToolTip = it.MentionPath + est + toolNote + (it.Sent
-                    ? "\nClick to @-mention it again."
-                    : "\nStaged - sends when Claude connects. Click to retry."),
+                ToolTip = it.MentionPath + est + toolNote + "\n" + (it.Sent
+                    ? Strings.ChipClickRemention
+                    : Strings.ChipStagedRetry),
             };
             name.SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey);
             name.MouseLeftButtonUp += (s, e) => _ = Task.Run(() => Attachments.AttachmentService.ResendAsync(it));
@@ -685,7 +675,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
                 VerticalAlignment = VerticalAlignment.Center,
                 Cursor = Cursors.Hand,
                 Opacity = 0.65,
-                ToolTip = it.WasCopied ? "Remove (deletes the staged copy)" : "Remove from the tray",
+                ToolTip = it.WasCopied ? Strings.ChipRemoveCopied : Strings.ChipRemove,
             };
             close.SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey);
             close.MouseLeftButtonUp += (s, e) => Attachments.AttachmentService.Remove(it);
@@ -705,7 +695,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
     }
 
     private static string Workspace()
-        => string.IsNullOrEmpty(BridgeStatus.Workspace) ? "(no workspace)" : BridgeStatus.Workspace!;
+        => string.IsNullOrEmpty(BridgeStatus.Workspace) ? Strings.NoWorkspace : BridgeStatus.Workspace!;
 
     private static string Tok(long n)
     {

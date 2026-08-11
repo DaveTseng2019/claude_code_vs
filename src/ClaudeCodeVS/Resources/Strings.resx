@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Neutral (English) UI strings. Keys are mirrored 1:1 by hand-written properties in Strings.cs
+  (nameof-keyed) and translated in Strings.zh-Hans.resx. Adding a user-facing string = add it in
+  BOTH resx files + a property in Strings.cs. See the Localization section in CLAUDE.md.
+-->
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- Panel: toolbar buttons -->
+  <data name="BtnClear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="BtnOutput" xml:space="preserve">
+    <value>Output</value>
+  </data>
+  <data name="BtnLaunch" xml:space="preserve">
+    <value>Launch Claude Code</value>
+  </data>
+  <data name="BtnExternalConsole" xml:space="preserve">
+    <value>External console</value>
+  </data>
+  <data name="TipExternalConsole" xml:space="preserve">
+    <value>Launch Claude Code in a separate console window instead of the docked terminal. Unlike the docked tab, it survives closing Visual Studio.</value>
+  </data>
+  <data name="BtnRelaunch" xml:space="preserve">
+    <value>Relaunch Claude Code</value>
+  </data>
+
+  <!-- Panel: toggles -->
+  <data name="ToggleAutoAccept" xml:space="preserve">
+    <value>Auto-accept (run wild)</value>
+  </data>
+  <data name="TipAutoAccept" xml:space="preserve">
+    <value>Apply edits without opening the diff (and launch new sessions in acceptEdits). Resets when VS restarts.</value>
+  </data>
+  <data name="TipAutoAcceptLocked" xml:space="preserve">
+    <value>Edits are pre-approved by the CLI session (permission mode '{0}'). Change it in the terminal (shift+tab), or start a new session.</value>
+  </data>
+  <data name="ToggleAllowDrive" xml:space="preserve">
+    <value>Allow Claude to drive debugger</value>
+  </data>
+  <data name="TipAllowDrive" xml:space="preserve">
+    <value>Let Claude continue/step and set breakpoints while paused. Resets when VS restarts.</value>
+  </data>
+  <data name="ToggleAllowCapture" xml:space="preserve">
+    <value>Allow screen capture</value>
+  </data>
+  <data name="TipAllowCapture" xml:space="preserve">
+    <value>Let Claude capture the debugged app's window, a window by title (e.g. your browser), or the screen as image attachments. Every capture is logged and staged as a visible chip. Resets when VS restarts.</value>
+  </data>
+  <data name="ToggleNotify" xml:space="preserve">
+    <value>Notify</value>
+  </data>
+  <data name="TipNotify" xml:space="preserve">
+    <value>Show a notification bar (and flash the taskbar when VS is in the background) when Claude finishes responding or needs your input.</value>
+  </data>
+
+  <!-- Panel: status pill + endpoint -->
+  <data name="StatusStarting" xml:space="preserve">
+    <value>Starting…</value>
+  </data>
+  <data name="StatusConnected" xml:space="preserve">
+    <value>Connected</value>
+  </data>
+  <data name="StatusWaiting" xml:space="preserve">
+    <value>Waiting for CLI</value>
+  </data>
+  <data name="EndpointFormat" xml:space="preserve">
+    <value>port {0}  ·  {1}</value>
+  </data>
+  <data name="NoWorkspace" xml:space="preserve">
+    <value>(no workspace)</value>
+  </data>
+
+  <!-- Panel: stats card -->
+  <data name="StatsEdits" xml:space="preserve">
+    <value>Edits   ✓ {0} accepted    ✗ {1} rejected</value>
+  </data>
+  <data name="StatsDebug" xml:space="preserve">
+    <value>Debugger   {0} inspected   ·   {1} driven</value>
+  </data>
+  <data name="StatsLatest" xml:space="preserve">
+    <value>Latest    ↑ {0} in   ↓ {1} out   ⚡ {2} cached</value>
+  </data>
+  <data name="StatsSession" xml:space="preserve">
+    <value>Session   ↑ {0} in   ↓ {1} out   ⚡ {2} cached</value>
+  </data>
+  <data name="StatsTurns" xml:space="preserve">
+    <value>  ·  {0} turns{1}</value>
+  </data>
+  <data name="BtnShowCost" xml:space="preserve">
+    <value>≈ Show est. cost</value>
+  </data>
+  <data name="BtnHideCost" xml:space="preserve">
+    <value>Hide cost</value>
+  </data>
+  <data name="CostFormat" xml:space="preserve">
+    <value>≈ ${0:0.00} session  ·  ${1:0.00} latest  (estimate)</value>
+  </data>
+  <data name="PendingFormat" xml:space="preserve">
+    <value>⏳ Awaiting your review:  {0}</value>
+  </data>
+  <data name="FeedLabel" xml:space="preserve">
+    <value>ACTIVITY</value>
+  </data>
+
+  <!-- Panel: warning banners -->
+  <data name="BannerHooksOnlyTitle" xml:space="preserve">
+    <value>⚠  A Claude session is running, but not connected to Visual Studio</value>
+  </data>
+  <data name="BannerHooksOnlyText" xml:space="preserve">
+    <value>Its hooks are reaching this workspace's bridge (token stats update), but the session was launched outside the extension and never connected the IDE channel - so edits won't open the review diff and selection isn't shared. Run /ide in that Claude terminal and pick Visual Studio (works from any folder inside the workspace), or relaunch from here. The vs-debug / vs-semantic tools additionally need the session started at the workspace root.</value>
+  </data>
+  <data name="BannerConfigTitle" xml:space="preserve">
+    <value>⚠  Workspace hooks &amp; tools didn't load for this session</value>
+  </data>
+  <data name="BannerConfigText" xml:space="preserve">
+    <value>Claude connected, but this session never loaded the workspace's .claude configuration - so the edit-review diff, notifications, and the vs-debug / vs-semantic / test tools are all inactive. Usually Claude was started outside (or in a subfolder of) the workspace{0}, so its project directory doesn't include our hooks - or the project MCP servers weren't approved. Relaunch from here (pins the right folder), or start claude at the workspace root; approve the vs-debug / vs-semantic servers if prompted.</value>
+  </data>
+
+  <!-- Panel: attachments -->
+  <data name="AttachHint" xml:space="preserve">
+    <value>📎  Attach — drop images/files here, or</value>
+  </data>
+  <data name="BtnPaste" xml:space="preserve">
+    <value>Paste</value>
+  </data>
+  <data name="TipPaste" xml:space="preserve">
+    <value>Paste from the clipboard: a screenshot (Win+Shift+S), copied files, or copied text (opens in the composer to review/edit, then attaches as .txt). Ctrl+V in the panel works too.</value>
+  </data>
+  <data name="BtnCompose" xml:space="preserve">
+    <value>Compose</value>
+  </data>
+  <data name="TipCompose" xml:space="preserve">
+    <value>Write multi-line text in an editor (line breaks, code, whatever), then attach it as a .txt with an @ reference in the Claude composer.</value>
+  </data>
+  <data name="AttachSummaryFormat" xml:space="preserve">
+    <value>≈ {0}{1} tok when read</value>
+  </data>
+  <data name="ChipEstimateFormat" xml:space="preserve">
+    <value>≈ {0} tokens when read (estimate)</value>
+  </data>
+  <data name="ChipNeedsTool" xml:space="preserve">
+    <value>Not a format Claude reads directly - it will use a script/tool on it.</value>
+  </data>
+  <data name="ChipClickRemention" xml:space="preserve">
+    <value>Click to @-mention it again.</value>
+  </data>
+  <data name="ChipStagedRetry" xml:space="preserve">
+    <value>Staged - sends when Claude connects. Click to retry.</value>
+  </data>
+  <data name="ChipRemoveCopied" xml:space="preserve">
+    <value>Remove (deletes the staged copy)</value>
+  </data>
+  <data name="ChipRemove" xml:space="preserve">
+    <value>Remove from the tray</value>
+  </data>
+
+  <!-- Compose dialog -->
+  <data name="ComposeTitle" xml:space="preserve">
+    <value>Compose attachment</value>
+  </data>
+  <data name="ComposePrompt" xml:space="preserve">
+    <value>Edit freely - line breaks, trimming, whatever you need. Attach stages this as a .txt and drops an @ reference into the Claude composer. (Ctrl+Enter attaches.)</value>
+  </data>
+  <data name="BtnAttach" xml:space="preserve">
+    <value>Attach</value>
+  </data>
+  <data name="BtnCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="TokensWhenRead" xml:space="preserve">
+    <value>≈ {0} tokens when read</value>
+  </data>
+
+  <!-- Reason dialog -->
+  <data name="ReasonTitle" xml:space="preserve">
+    <value>Reject change</value>
+  </data>
+  <data name="ReasonPrompt" xml:space="preserve">
+    <value>Tell Claude what to change about {0} (optional):</value>
+  </data>
+  <data name="BtnSendToClaude" xml:space="preserve">
+    <value>Send to Claude</value>
+  </data>
+  <data name="BtnJustReject" xml:space="preserve">
+    <value>Just reject</value>
+  </data>
+
+  <!-- Diff InfoBar -->
+  <data name="DiffAccept" xml:space="preserve">
+    <value>Accept</value>
+  </data>
+  <data name="DiffReject" xml:space="preserve">
+    <value>Reject</value>
+  </data>
+  <data name="DiffRejectWithReason" xml:space="preserve">
+    <value>Reject with feedback…</value>
+  </data>
+  <data name="DiffProposes" xml:space="preserve">
+    <value>Claude Code proposes changes to {0}. </value>
+  </data>
+  <data name="DiffLeftLabel" xml:space="preserve">
+    <value>{0} (current)</value>
+  </data>
+  <data name="DiffRightLabel" xml:space="preserve">
+    <value>{0} (Claude proposal)</value>
+  </data>
+
+  <!-- Notifications -->
+  <data name="NotifyTurnEnded" xml:space="preserve">
+    <value>Claude finished responding.</value>
+  </data>
+  <data name="NotifyNeedsInput" xml:space="preserve">
+    <value>Claude needs your input.</value>
+  </data>
+  <data name="TipRunWildOn" xml:space="preserve">
+    <value>Run wild is on: edits now apply without the diff. Tip: press Shift+Tab in the Claude terminal to switch the session itself to auto-accept (covers non-edit prompts too).</value>
+  </data>
+</root>

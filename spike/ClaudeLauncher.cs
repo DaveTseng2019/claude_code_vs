@@ -16,13 +16,20 @@ internal static class ClaudeLauncher
     public static string? FindClaude()
     {
         var candidates = new List<string>();
+        // On Windows the native binary is claude.exe (and npm installs a claude.cmd shim); an
+        // extensionless probe only matches the POSIX install.
+        string[] names = OperatingSystem.IsWindows()
+            ? new[] { "claude.exe", "claude.cmd", "claude" }
+            : new[] { "claude" };
 
         var pathVar = Environment.GetEnvironmentVariable("PATH") ?? "";
         foreach (var dir in pathVar.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-            candidates.Add(Path.Combine(dir, "claude"));
+            foreach (var n in names)
+                candidates.Add(Path.Combine(dir, n));
 
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        candidates.Add(Path.Combine(home, ".local", "bin", "claude"));
+        foreach (var n in names)
+            candidates.Add(Path.Combine(home, ".local", "bin", n));
         candidates.Add("/opt/homebrew/bin/claude");
         candidates.Add("/usr/local/bin/claude");
 

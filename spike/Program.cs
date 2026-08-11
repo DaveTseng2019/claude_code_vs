@@ -162,11 +162,16 @@ async Task RunCliProbeAsync(int port, string workingDir, CancellationToken ct)
 
     // Give the CLI time to start, connect, and run the handshake; then tear down.
     using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-    timeout.CancelAfter(TimeSpan.FromSeconds(40));
+    timeout.CancelAfter(TimeSpan.FromSeconds(90)); // 2.1.223-era cold starts alone run ~30s on Windows
     try
     {
         await proc.WaitForExitAsync(timeout.Token);
         Log.Info($"claude exited with code {proc.ExitCode}");
+        // Since ~2.1.223, headless -p answers WITHOUT opening the IDE WebSocket, so "no 'client
+        // connected' above" is expected here. This mode now only proves the CLI launches and runs
+        // with the env set; verify the actual handshake interactively (run the spike bare, then
+        // `claude` with the env line it prints, then /ide).
+        Log.Info("(handshake check: if no 'client connected' logged above, that's normal for headless -p on 2.1.223+ - run the interactive mode to see the real handshake.)");
     }
     catch (OperationCanceledException)
     {

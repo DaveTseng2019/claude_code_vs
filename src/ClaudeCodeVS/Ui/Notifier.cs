@@ -33,7 +33,7 @@ internal sealed class Notifier : IVsInfoBarUIEvents
 
     /// <summary>Claude finished a turn (Stop hook). Auto-dismisses - it's a heads-up, not a task.</summary>
     public static void TurnEnded()
-        => Post("Claude finished responding.", autoDismiss: true, feedWorthy: false);
+        => Post(Strings.NotifyTurnEnded, autoDismiss: true, feedWorthy: false);
 
     /// <summary>An actionable hint (e.g. the CLI-side lever for a panel toggle). Auto-dismisses; logged to the feed.</summary>
     public static void Tip(string message)
@@ -43,7 +43,7 @@ internal sealed class Notifier : IVsInfoBarUIEvents
     public static void NeedsAttention(string message)
     {
         var msg = (message ?? "").Trim();
-        if (msg.Length == 0) msg = "Claude needs your input.";
+        if (msg.Length == 0) msg = Strings.NotifyNeedsInput;
         if (msg.Length > MaxMessageChars) msg = msg.Substring(0, MaxMessageChars) + "…";
         Post(msg, autoDismiss: false, feedWorthy: true);
     }
