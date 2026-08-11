@@ -14,7 +14,7 @@ Bring [Claude Code](https://claude.com/claude-code) into **Visual Studio 2026**.
 
 *A fresh Claude session driving the Visual Studio debugger to find a bug that is invisible in the output, then opening the fix in the native diff.*
 
-**Status:** community project, not affiliated with Anthropic. Visual Studio 2026 only for now. Tested against `claude` 2.1.221.
+**Status:** community project, not affiliated with Anthropic. Visual Studio 2026 only for now. Tested against `claude` 2.1.223.
 
 ## Why
 
@@ -41,6 +41,7 @@ The demand for this is on the Claude Code tracker. These requests ask for what t
 - **Screen capture: Claude takes its own screenshots (opt-in)** - two gated tools give Claude eyes: capture the debugged app's window, any window by title (the browser showing your site), the VS window, or the whole screen. Captures land in the attachment tray as visible chips with a token estimate, and the tool returns a path Claude reads with real vision - UI layouts, images, rendered pages, text in windows that are not files. Off by default behind an **Allow screen capture** toggle; every capture is logged. Full reference: [the vision guide](https://github.com/firish/claude_code_vs/blob/main/docs/VISION.md).
 - **Notifications** - an in-IDE heads-up when Claude finishes responding or needs your input (a permission prompt, or it went idle waiting for you): a notification bar in Visual Studio, plus a taskbar flash when VS is in the background. For working in another window while it cooks. A panel toggle mutes it. Full reference: [the quality-of-life guide](https://github.com/firish/claude_code_vs/blob/main/docs/QOL.md#notifications).
 - **Live panel** - a dockable Claude Code panel: connection status, edit decisions, and token usage with estimated cost (latest call vs cumulative session).
+- **简体中文界面** - the extension's UI (panel, dialogs, the diff Accept/Reject bar, notifications) follows Visual Studio's display language, with Simplified Chinese included. Run VS in 中文(简体) and the extension matches; anything untranslated falls back to English per-string. The `claude` CLI's own terminal text stays English (upstream). Translation corrections welcome via issue or PR.
 
 ## A closer look
 
@@ -120,7 +121,7 @@ A dockable Claude Code panel shows connection status, edit decisions, and token 
 
 - **Visual Studio 2026.**
 - **The Claude Code CLI**, installed and authenticated. See the [Claude Code docs](https://docs.claude.com/claude-code). This extension makes no model calls and does no agent work itself, so it needs the CLI.
-- Tested against `claude` 2.1.221.
+- Tested against `claude` 2.1.223.
 
 ## Install
 
@@ -155,7 +156,7 @@ This is a protocol bridge, not a re-implementation of the agent. On Launch it st
 ## Limitations and known issues
 
 - Visual Studio 2026 only for now. A VS 2022 backfill is planned if there is demand.
-- The integration protocol is undocumented and version-fragile, so a `claude` update could change it. Known-good: 2.1.221.
+- The integration protocol is undocumented and version-fragile, so a `claude` update could change it. Known-good: 2.1.223.
 - Diagnostics need a loaded project. The Error List and Roslyn will not analyze loose files.
 - Semantic navigation is C#/VB and needs a loaded project. It reads the Roslyn workspace, so it sees the solution open in Visual Studio, and it does not cover C++ navigation.
 - Debugger features target managed (.NET) code. Reading runtime state is always on, and driving execution is opt-in. Native and C++ runtime inspection is not covered.

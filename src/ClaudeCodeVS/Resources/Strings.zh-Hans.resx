@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Simplified Chinese (issue #20). Maintained by Claude (the maintainer does not read Chinese - see
+  CLAUDE.md's Localization section): every key added to Strings.resx gets its translation here in
+  the same change. Style: Microsoft zh-Hans conventions (modern 你, full-width punctuation in
+  prose); product/technical terms (Claude Code, CLI, token, acceptEdits, /ide, vs-debug, MCP,
+  .claude) stay in English. Missing keys fall back to English per-string at runtime.
+-->
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- Panel: toolbar buttons -->
+  <data name="BtnClear" xml:space="preserve">
+    <value>清除</value>
+  </data>
+  <data name="BtnOutput" xml:space="preserve">
+    <value>输出</value>
+  </data>
+  <data name="BtnLaunch" xml:space="preserve">
+    <value>启动 Claude Code</value>
+  </data>
+  <data name="BtnExternalConsole" xml:space="preserve">
+    <value>外部控制台</value>
+  </data>
+  <data name="TipExternalConsole" xml:space="preserve">
+    <value>在独立的控制台窗口中启动 Claude Code，而不是停靠的终端。与停靠的终端标签不同，关闭 Visual Studio 后它仍会保留。</value>
+  </data>
+  <data name="BtnRelaunch" xml:space="preserve">
+    <value>重新启动 Claude Code</value>
+  </data>
+
+  <!-- Panel: toggles -->
+  <data name="ToggleAutoAccept" xml:space="preserve">
+    <value>自动接受（放手模式）</value>
+  </data>
+  <data name="TipAutoAccept" xml:space="preserve">
+    <value>不打开差异审查，直接应用编辑（新会话也将以 acceptEdits 模式启动）。VS 重启后重置。</value>
+  </data>
+  <data name="TipAutoAcceptLocked" xml:space="preserve">
+    <value>当前 CLI 会话已预先批准编辑（权限模式“{0}”）。请在终端中按 Shift+Tab 修改，或开始新会话。</value>
+  </data>
+  <data name="ToggleAllowDrive" xml:space="preserve">
+    <value>允许 Claude 驱动调试器</value>
+  </data>
+  <data name="TipAllowDrive" xml:space="preserve">
+    <value>允许 Claude 在暂停时继续/单步执行并设置断点。VS 重启后重置。</value>
+  </data>
+  <data name="ToggleAllowCapture" xml:space="preserve">
+    <value>允许屏幕截图</value>
+  </data>
+  <data name="TipAllowCapture" xml:space="preserve">
+    <value>允许 Claude 将被调试应用的窗口、按标题指定的窗口（例如浏览器）或整个屏幕捕获为图片附件。每次截图都会记录，并作为可见的附件条目暂存。VS 重启后重置。</value>
+  </data>
+  <data name="ToggleNotify" xml:space="preserve">
+    <value>通知</value>
+  </data>
+  <data name="TipNotify" xml:space="preserve">
+    <value>当 Claude 完成回复或需要你的输入时显示通知栏（VS 在后台时还会闪烁任务栏）。</value>
+  </data>
+
+  <!-- Panel: status pill + endpoint -->
+  <data name="StatusStarting" xml:space="preserve">
+    <value>正在启动…</value>
+  </data>
+  <data name="StatusConnected" xml:space="preserve">
+    <value>已连接</value>
+  </data>
+  <data name="StatusWaiting" xml:space="preserve">
+    <value>等待 CLI 连接</value>
+  </data>
+  <data name="EndpointFormat" xml:space="preserve">
+    <value>端口 {0}  ·  {1}</value>
+  </data>
+  <data name="NoWorkspace" xml:space="preserve">
+    <value>（无工作区）</value>
+  </data>
+
+  <!-- Panel: stats card -->
+  <data name="StatsEdits" xml:space="preserve">
+    <value>编辑   ✓ 已接受 {0}    ✗ 已拒绝 {1}</value>
+  </data>
+  <data name="StatsDebug" xml:space="preserve">
+    <value>调试器   检查 {0} 次   ·   驱动 {1} 次</value>
+  </data>
+  <data name="StatsLatest" xml:space="preserve">
+    <value>最近一次    ↑ 输入 {0}   ↓ 输出 {1}   ⚡ 缓存 {2}</value>
+  </data>
+  <data name="StatsSession" xml:space="preserve">
+    <value>本次会话    ↑ 输入 {0}   ↓ 输出 {1}   ⚡ 缓存 {2}</value>
+  </data>
+  <data name="StatsTurns" xml:space="preserve">
+    <value>  ·  {0} 轮{1}</value>
+  </data>
+  <data name="BtnShowCost" xml:space="preserve">
+    <value>≈ 显示估算费用</value>
+  </data>
+  <data name="BtnHideCost" xml:space="preserve">
+    <value>隐藏费用</value>
+  </data>
+  <data name="CostFormat" xml:space="preserve">
+    <value>≈ 本次会话 ${0:0.00}  ·  最近一次 ${1:0.00}（估算）</value>
+  </data>
+  <data name="PendingFormat" xml:space="preserve">
+    <value>⏳ 等待你审查：  {0}</value>
+  </data>
+  <data name="FeedLabel" xml:space="preserve">
+    <value>活动</value>
+  </data>
+
+  <!-- Panel: warning banners -->
+  <data name="BannerHooksOnlyTitle" xml:space="preserve">
+    <value>⚠  有一个 Claude 会话正在运行，但未连接到 Visual Studio</value>
+  </data>
+  <data name="BannerHooksOnlyText" xml:space="preserve">
+    <value>它的钩子正在访问此工作区的桥接服务（token 统计在更新），但该会话是在扩展之外启动的，从未连接 IDE 通道——因此编辑不会打开审查差异，选区也不会共享。请在那个 Claude 终端中运行 /ide 并选择 Visual Studio（在工作区内的任何文件夹都有效），或从这里重新启动。vs-debug / vs-semantic 工具还要求会话从工作区根目录启动。</value>
+  </data>
+  <data name="BannerConfigTitle" xml:space="preserve">
+    <value>⚠  本会话未加载工作区的钩子和工具</value>
+  </data>
+  <data name="BannerConfigText" xml:space="preserve">
+    <value>Claude 已连接，但本会话从未加载工作区的 .claude 配置——因此编辑审查差异、通知以及 vs-debug / vs-semantic / 测试工具全都未激活。通常是因为 claude 在工作区之外（或其子文件夹中）启动{0}，其项目目录不包含我们的钩子——或者项目 MCP 服务器未获批准。请从这里重新启动（会固定正确的文件夹），或在工作区根目录启动 claude；如有提示，请批准 vs-debug / vs-semantic 服务器。</value>
+  </data>
+
+  <!-- Panel: attachments -->
+  <data name="AttachHint" xml:space="preserve">
+    <value>📎  附件 — 将图片/文件拖放到这里，或</value>
+  </data>
+  <data name="BtnPaste" xml:space="preserve">
+    <value>粘贴</value>
+  </data>
+  <data name="TipPaste" xml:space="preserve">
+    <value>从剪贴板粘贴：截图（Win+Shift+S）、复制的文件或复制的文本（会在撰写框中打开供审查/编辑，然后作为 .txt 附加）。在面板中按 Ctrl+V 也可以。</value>
+  </data>
+  <data name="BtnCompose" xml:space="preserve">
+    <value>撰写</value>
+  </data>
+  <data name="TipCompose" xml:space="preserve">
+    <value>在编辑框中撰写多行文本（换行、代码等都可以），然后作为 .txt 附加，并在 Claude 输入框中插入 @ 引用。</value>
+  </data>
+  <data name="AttachSummaryFormat" xml:space="preserve">
+    <value>≈ 读取时约 {0}{1} token</value>
+  </data>
+  <data name="ChipEstimateFormat" xml:space="preserve">
+    <value>≈ 读取时约 {0} token（估算）</value>
+  </data>
+  <data name="ChipNeedsTool" xml:space="preserve">
+    <value>不是 Claude 可直接读取的格式——它会用脚本/工具来处理。</value>
+  </data>
+  <data name="ChipClickRemention" xml:space="preserve">
+    <value>点击可再次 @ 引用。</value>
+  </data>
+  <data name="ChipStagedRetry" xml:space="preserve">
+    <value>已暂存——Claude 连接后发送。点击可重试。</value>
+  </data>
+  <data name="ChipRemoveCopied" xml:space="preserve">
+    <value>移除（同时删除暂存副本）</value>
+  </data>
+  <data name="ChipRemove" xml:space="preserve">
+    <value>从附件栏移除</value>
+  </data>
+
+  <!-- Compose dialog -->
+  <data name="ComposeTitle" xml:space="preserve">
+    <value>撰写附件</value>
+  </data>
+  <data name="ComposePrompt" xml:space="preserve">
+    <value>可自由编辑——换行、删减，随你需要。“附加”会将其保存为 .txt，并在 Claude 输入框中插入 @ 引用。（Ctrl+Enter 附加。）</value>
+  </data>
+  <data name="BtnAttach" xml:space="preserve">
+    <value>附加</value>
+  </data>
+  <data name="BtnCancel" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="TokensWhenRead" xml:space="preserve">
+    <value>≈ 读取时约 {0} token</value>
+  </data>
+
+  <!-- Reason dialog -->
+  <data name="ReasonTitle" xml:space="preserve">
+    <value>拒绝更改</value>
+  </data>
+  <data name="ReasonPrompt" xml:space="preserve">
+    <value>告诉 Claude 需要对 {0} 做哪些修改（可选）：</value>
+  </data>
+  <data name="BtnSendToClaude" xml:space="preserve">
+    <value>发送给 Claude</value>
+  </data>
+  <data name="BtnJustReject" xml:space="preserve">
+    <value>仅拒绝</value>
+  </data>
+
+  <!-- Diff InfoBar -->
+  <data name="DiffAccept" xml:space="preserve">
+    <value>接受</value>
+  </data>
+  <data name="DiffReject" xml:space="preserve">
+    <value>拒绝</value>
+  </data>
+  <data name="DiffRejectWithReason" xml:space="preserve">
+    <value>拒绝并反馈…</value>
+  </data>
+  <data name="DiffProposes" xml:space="preserve">
+    <value>Claude Code 建议修改 {0}。 </value>
+  </data>
+  <data name="DiffLeftLabel" xml:space="preserve">
+    <value>{0}（当前）</value>
+  </data>
+  <data name="DiffRightLabel" xml:space="preserve">
+    <value>{0}（Claude 的建议）</value>
+  </data>
+
+  <!-- Notifications -->
+  <data name="NotifyTurnEnded" xml:space="preserve">
+    <value>Claude 已完成回复。</value>
+  </data>
+  <data name="NotifyNeedsInput" xml:space="preserve">
+    <value>Claude 需要你的输入。</value>
+  </data>
+  <data name="TipRunWildOn" xml:space="preserve">
+    <value>放手模式已开启：现在编辑将直接应用，不再打开差异审查。提示：在 Claude 终端中按 Shift+Tab 可将会话本身切换为自动接受（也涵盖非编辑类的确认）。</value>
+  </data>
+</root>

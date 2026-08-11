@@ -6,7 +6,7 @@ Bring [Claude Code](https://claude.com/claude-code) into **Visual Studio 2026**.
 
 *A fresh Claude session driving the Visual Studio debugger to find a bug that is invisible in the output, then opening the fix in the native diff.*
 
-**Status:** community project, not affiliated with Anthropic. Visual Studio 2026 only for now. Tested against `claude` 2.1.221.
+**Status:** community project, not affiliated with Anthropic. Visual Studio 2026 only for now. Tested against `claude` 2.1.223.
 
 **Jump to a feature:** [Native diff](#a-native-diff-with-one-approval-step) · [Drive the debugger](#a-debugger-claude-can-drive) · [Data breakpoints](#break-when-a-value-changes) · [Catch flaky tests](#catch-a-failing-test-even-the-flaky-ones) · [Semantic navigation](#read-code-the-way-the-compiler-does) · [Integrated terminal](#claude-in-the-ides-own-terminal) · [Attach files](#attach-a-screenshot-or-any-file) · [Claude's eyes](#claude-takes-its-own-screenshots) · [The panel](#a-live-panel)
 
@@ -37,6 +37,7 @@ The demand for this is on the Claude Code tracker. These requests ask for what t
 - **Screen capture: Claude takes its own screenshots (opt-in)** - two gated tools give Claude eyes: capture the debugged app's window, any window by title (the browser showing your site), the VS window, or the whole screen. Captures land in the attachment tray as visible chips with a token estimate, and the tool returns a path Claude Reads with real vision - UI layouts, images, rendered pages, text in windows that are not files. Off by default behind an **Allow screen capture** toggle; every capture is logged. Full reference: [`docs/VISION.md`](docs/VISION.md).
 - **Notifications** - an in-IDE heads-up when Claude finishes responding or needs your input (a permission prompt, or it went idle waiting for you): a notification bar in Visual Studio, plus a taskbar flash when VS is in the background. For working in another window while it cooks. A panel toggle mutes it. Full reference: [`docs/QOL.md`](docs/QOL.md#notifications).
 - **Live panel** - a dockable Claude Code panel: connection status, edit decisions, and token usage with estimated cost (latest call vs cumulative session).
+- **简体中文界面** - the extension's UI (panel, dialogs, the diff Accept/Reject bar, notifications) follows Visual Studio's display language, with Simplified Chinese included. Run VS in 中文(简体) and the extension matches; anything untranslated falls back to English per-string. The `claude` CLI's own terminal text stays English (upstream). Translation corrections welcome via issue or PR.
 
 ## A closer look
 
@@ -139,7 +140,7 @@ A dockable Claude Code panel shows connection status, edit decisions, and token 
 
 - Visual Studio 2026.
 - The Claude Code CLI, installed and authenticated. See the [Claude Code docs](https://docs.claude.com/claude-code). This extension makes no model calls and does no agent work itself, so it needs the CLI.
-- Tested against `claude` 2.1.221.
+- Tested against `claude` 2.1.223.
 
 ## Install
 
@@ -189,7 +190,7 @@ For debugger access it adds a `UserPromptSubmit` hook that injects live break st
 ## Limitations and known issues
 
 - Visual Studio 2026 only for now. A VS 2022 backfill is planned if there is demand.
-- The integration protocol is undocumented and version-fragile, so a `claude` update could change it. Known-good: 2.1.221.
+- The integration protocol is undocumented and version-fragile, so a `claude` update could change it. Known-good: 2.1.223.
 - Diagnostics need a loaded project. The Error List and Roslyn will not analyze loose files.
 - Semantic navigation is C#/VB and needs a loaded project. It reads the Roslyn workspace, so it sees the solution open in VS rather than the CLI's working directory if they differ, and it does not cover C++ navigation.
 - Debugger features target managed (.NET) code. Reading runtime state is always on, and driving execution is opt-in. Native and C++ runtime inspection is not covered.
@@ -204,6 +205,7 @@ For debugger access it adds a `UserPromptSubmit` hook that injects live break st
 
 - **Panel says "Waiting for CLI":** click **Launch Claude Code**, or run `/ide` in a `claude` terminal and pick *Visual Studio*.
 - **The debugger, test, or semantic tools are missing:** the panel warns when the `vs-debug` and `vs-semantic` servers did not load for a session. Relaunch Claude from the panel (or from inside the workspace folder) and approve the project MCP servers if the CLI prompts.
+- **Everything stopped working right after `claude` updated** (connected, but the panel warns that hooks & tools didn't load, and stats stay at zero): newer CLIs (2.1.222+) tie project hooks to workspace **trust**. In the claude terminal run `/hooks` - if it shows nothing, restart `claude` and accept the trust prompt for the folder. If it recurs, open `~/.claude.json` and remove duplicate project entries that differ only by path casing (`c:/…` vs `C:/…` - an upstream CLI bug, [anthropics/claude-code#46586](https://github.com/anthropics/claude-code/issues/46586)); close other running claude sessions first so the fix can save.
 - **New files land in the wrong folder:** launch from the extension, which pins the working directory to your workspace, or run `claude` from inside the repo.
 - **getDiagnostics returns nothing:** open the code as a project and confirm the error appears in the Error List.
 - **`claude` opened in a separate console instead of the docked terminal:** the native terminal path failed or timed out and fell back (by design - the reason is in **Output > Claude Code**). Everything still works.

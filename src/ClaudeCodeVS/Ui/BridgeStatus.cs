@@ -92,8 +92,7 @@ internal static class BridgeStatus
         // applies; a permissive session locks the checkbox, so value=true implies mode is default.)
         if (value && Connected && !CliEditsPreApproved)
         {
-            Notifier.Tip("Run wild is on: edits now apply without the diff. Tip: press Shift+Tab in the "
-                       + "Claude terminal to switch the session itself to auto-accept (covers non-edit prompts too).");
+            Notifier.Tip(Strings.TipRunWildOn);
         }
     }
 

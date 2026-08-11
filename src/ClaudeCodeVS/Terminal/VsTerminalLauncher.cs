@@ -96,6 +96,11 @@ internal static class VsTerminalLauncher
                 return false;
             }
             IServiceBroker broker = container.GetFullAccessServiceBroker();
+            // GetServiceAsync above takes NO token, and on a cold ServiceHub it can stall long past our
+            // timeout - after which the fallback has already launched the external console. Explicit
+            // gates from here down keep a late-running attempt from opening a SECOND terminal (seen
+            // live 2026-08-06: 10s stall -> external console AND a late native tab, two sessions).
+            ct.ThrowIfCancellationRequested();
 
             // T = ITerminalService is only known as a reflected Type, so the generic call needs
             // MakeGenericMethod. Overload-tolerant lookup: a bare GetMethod("GetProxyAsync") throws
@@ -128,6 +133,10 @@ internal static class VsTerminalLauncher
             object? profile = null;
             try
             {
+                // Last gate before side effects (AddCachedProfile / the create call): the proxy
+                // acquisition may have ignored its token during a cold start.
+                ct.ThrowIfCancellationRequested();
+
                 // ProfileConfig's shape could drift across a VS update - select the 4-arg ctor explicitly
                 // rather than trusting GetConstructors() ordering, and fail loudly into the fallback.
                 var profileCtor = profileConfigType.GetConstructors().FirstOrDefault(c => c.GetParameters().Length == 4);
@@ -234,6 +243,13 @@ internal static class VsTerminalLauncher
                 // Brokered-service proxies must be disposed - each GetProxyAsync hands out a live RPC client.
                 (terminalService as IDisposable)?.Dispose();
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // Lost the race to the timeout: the external-console fallback already took over. The gates
+            // above guarantee no terminal was created on this path.
+            Log.Info("Native VS terminal attempt aborted after the external-console fallback took over (no second terminal opened).");
+            return false;
         }
         catch (Exception e)
         {

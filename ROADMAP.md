@@ -88,6 +88,14 @@ Shipped: the panel attach tray (paste/drop → stage → `at_mentioned` chip in 
 - **Per-tool / per-subagent token breakdown in the panel.** Two halves with different truth levels: a per-SUBAGENT rollup is **exact** (sidechain messages in the transcript carry real per-request `usage` records — sum them per agent; `UsageTracker` already parses the file every turn), while per-TOOL attribution is an **estimate** (no exact per-call numbers exist anywhere, even in the CLI — group `tool_result` sizes by tool name at ~4 chars/token into a "top context consumers" line, e.g. `Read ≈40k · vs_debug_state ≈12k`). Uniquely ours: shows what the vs-debug/vs-semantic reads cost a session, pairing with the panel's inspected/driven counters. Don't duplicate what the CLI has natively (`/cost` totals, `/context` composition, subagent completion summaries). ~a day; keep the estimate labeling discipline.
 - **Session-wide image/text token split in the stats card** — the API reports only aggregate `input_tokens`, so this would be estimate-on-top-of-exact (walk the transcript's image blocks, apply (w×h)/750). Deferred unless demand shows up; the per-attachment estimates cover the actionable part.
 
+## Localization (1.16.0) — next steps
+
+Shipped: the resx infrastructure + Simplified Chinese for the whole visible UI, following VS's display language (issue #20). Remaining, in priority order:
+
+- **VSCT menu localization** — the two menu entries (Tools > Launch Claude Code, View > Other Windows > Claude Code) stay English: VSCT strings localize via per-language .vsct compilation or satellite UI DLLs, a disproportionate MSBuild dance for two lines. Do it if a native speaker reports it as jarring.
+- **More languages on demand** — the infrastructure is one resx per language (`Strings.<culture>.resx` + a csproj `EmbeddedResource` + the satellite-bundle target picks it up generalized). Each language is a standing translation commitment (Claude maintains zh-Hans as part of every release per CLAUDE.md convention #6); add ja/ko/de only on real requests.
+- **Marketplace listing in Chinese** — the VS Marketplace supports per-language listings; a translated `marketplace.md` would make the extension findable for zh users. Cheap, decoupled from the code.
+
 ## Ongoing maintenance
 
 - **Protocol smoke test on every `claude` bump.** Run `spike/`, confirm: connects, `mcp__ide__*` tools appear, `openDiff` fires on an edit, accept/reject controls the outcome, `/permission` endpoint responds. The contract is undocumented and has broken across CLI releases before. Pin the known-good `claude --version` in the repo.

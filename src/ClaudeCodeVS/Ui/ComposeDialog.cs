@@ -22,7 +22,7 @@ internal sealed class ComposeDialog : DialogWindow
 
     private ComposeDialog(string initialText)
     {
-        Title = "Compose attachment";
+        Title = Strings.ComposeTitle;
         Width = 640;
         Height = 440;
         MinWidth = 420;
@@ -41,8 +41,7 @@ internal sealed class ComposeDialog : DialogWindow
 
         var prompt = new TextBlock
         {
-            Text = "Edit freely - line breaks, trimming, whatever you need. Attach stages this as a .txt "
-                 + "and drops an @ reference into the Claude composer. (Ctrl+Enter attaches.)",
+            Text = Strings.ComposePrompt,
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 8),
             Opacity = 0.85,
@@ -75,8 +74,8 @@ internal sealed class ComposeDialog : DialogWindow
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         DockPanel.SetDock(buttons, Dock.Right);
-        var ok = new Button { Content = "Attach", IsDefault = false, MinWidth = 100, Margin = new Thickness(0, 0, 8, 0), Padding = new Thickness(8, 2, 8, 2) };
-        var cancel = new Button { Content = "Cancel", IsCancel = true, MinWidth = 80, Padding = new Thickness(8, 2, 8, 2) };
+        var ok = new Button { Content = Strings.BtnAttach, IsDefault = false, MinWidth = 100, Margin = new Thickness(0, 0, 8, 0), Padding = new Thickness(8, 2, 8, 2) };
+        var cancel = new Button { Content = Strings.BtnCancel, IsCancel = true, MinWidth = 80, Padding = new Thickness(8, 2, 8, 2) };
         ok.Click += (s, e) => { DialogResult = true; };
         buttons.Children.Add(ok);
         buttons.Children.Add(cancel);
@@ -103,7 +102,8 @@ internal sealed class ComposeDialog : DialogWindow
     {
         int chars = _box.Text?.Length ?? 0;
         long tokens = Math.Max(chars > 0 ? 1 : 0, chars / 4);
-        _estimate.Text = chars == 0 ? "" : $"≈ {(tokens >= 1000 ? (tokens / 1000.0).ToString("0.0") + "k" : tokens.ToString())} tokens when read";
+        _estimate.Text = chars == 0 ? "" : string.Format(Strings.TokensWhenRead,
+            tokens >= 1000 ? (tokens / 1000.0).ToString("0.0") + "k" : tokens.ToString());
     }
 
     /// <summary>Show the composer (optionally pre-filled). Returns the final text, or null if cancelled/empty.</summary>
