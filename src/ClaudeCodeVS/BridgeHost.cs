@@ -77,6 +77,12 @@ internal sealed class BridgeHost : IDisposable
         // 4) Start the localhost WS server on the claimed port.
         _server = new IdeWebSocketServer(_lockfile.Port, _lockfile.AuthToken, mcp);
 
+        // Session-ownership gate for the hook endpoints (PR #28): the hooks fall back to any
+        // listening bridge when no workspace matches their session's cwd, so the server compares
+        // each POST's cwd against OUR workspace and ignores foreign sessions. A provider, not a
+        // snapshot - BridgeStatus.Workspace follows the solution as it loads/changes.
+        _server.WorkspaceProvider = () => Ui.BridgeStatus.Workspace;
+
         // Let the selection tracker push selection_changed over this server.
         Editor.SelectionService.Attach(_server, ThreadHelper.JoinableTaskFactory);
 

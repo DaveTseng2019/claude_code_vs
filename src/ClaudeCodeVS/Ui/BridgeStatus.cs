@@ -28,13 +28,7 @@ internal static class BridgeStatus
 
     public static int? Port { get; private set; }
     public static string? Workspace { get; private set; }
-    /// <summary>
-    /// True while a CLI's IDE WebSocket is attached to THIS instance. Written from the WS server's
-    /// callback thread and read from the hook HTTP handler threads (<see cref="Notifier"/>), so the
-    /// backing field is volatile - a stale read here would let a notification through after a drop.
-    /// </summary>
-    public static bool Connected => _connected;
-    private static volatile bool _connected;
+    public static bool Connected { get; private set; }
 
     /// <summary>When the CLI most recently connected (for an uptime readout); null while disconnected.</summary>
     public static DateTime? ConnectedSince { get; private set; }
@@ -224,7 +218,7 @@ internal static class BridgeStatus
 
     public static void SetConnected(bool connected)
     {
-        _connected = connected;
+        Connected = connected;
         ConnectedSince = connected ? DateTime.Now : null;
         Changed?.Invoke();
     }

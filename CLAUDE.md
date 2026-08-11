@@ -60,7 +60,7 @@ Lockfile `~/.claude/ide/<port>.lock` (filename == port):
 { "pid": 0, "pidStartTime": 0, "workspaceFolders": ["..."], "ideName": "Visual Studio",
   "transport": "ws", "runningInWindows": true, "authToken": "<uuid>" }
 ```
-`pidStartTime` is extension-only (the CLI ignores unknown fields): paired with `pid` so a recycled PID can't make a dead lockfile look alive. Hooks pick the **most-specific** workspace match whose port is **listening** (defeats parent-folder shadowing + zombie lockfiles).
+`pidStartTime` is extension-only (the CLI ignores unknown fields): paired with `pid` so a recycled PID can't make a dead lockfile look alive. Hooks pick the **most-specific** workspace match whose port is **listening** (defeats parent-folder shadowing + zombie lockfiles; separator-aware so `app` never matches `app-service`) - but they still FALL BACK to any listening bridge on zero match, so every hook POST carries the session's `cwd` and the bridge's **session-ownership gate** (one check in `IdeWebSocketServer.HandleContextAsync`, ahead of all four hook endpoints AND the hooks-only banner) ignores foreign-workspace sessions: `/permission` answers `ask:true` (the CLI's own prompt decides - never auto-allow a foreign edit), the observers get benign 200s. Missing `cwd` or no open workspace = fail-open (PR #28).
 
 Env before launching CLI: `CLAUDE_CODE_SSE_PORT=<port>`, `ENABLE_IDE_INTEGRATION=true`.
 Full schema + all 12 tool definitions: see `src/ClaudeCodeVS/Tools/` and the Tool status section below.

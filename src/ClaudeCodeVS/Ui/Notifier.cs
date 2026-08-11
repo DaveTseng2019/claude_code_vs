@@ -50,16 +50,6 @@ internal sealed class Notifier : IVsInfoBarUIEvents
 
     private static void Post(string message, bool autoDismiss, bool feedWorthy)
     {
-        // The hooks route by lockfile and fall back to ANY listening VS bridge when no workspace matches
-        // the CLI's cwd, so a notification belonging to another IDE - or to no IDE at all - can land here.
-        // With no CLI attached to THIS instance there is no Claude window for the user to switch to, and
-        // the InfoBar would only point them at something they can't see. Log it and drop it.
-        if (!BridgeStatus.Connected)
-        {
-            Log.Event($"notify (ignored, no CLI attached to this instance): {message}");
-            return;
-        }
-
         // Needs-input is rare and actionable -> panel feed (Info); turn-end fires every turn -> Output
         // pane only (Event), so the feed stays readable.
         if (feedWorthy) Log.Info($"notify: {message}");

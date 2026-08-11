@@ -153,38 +153,47 @@ public sealed class IdeWebSocketServer
             return;
         }
 
-        // 2) Plain HTTP POST /permission (from the PreToolUse hook) - the single-gate path.
+        // 2) Plain HTTP hook endpoints (PreToolUse /permission, Stop /usage, Notification /notify,
+        //    UserPromptSubmit /debug-context), all behind ONE session-ownership gate, then the MCP routes.
         if (!ctx.Request.IsWebSocketRequest)
         {
-            if (string.Equals(ctx.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase)
-                && ctx.Request.Url?.AbsolutePath == "/permission")
+            var path = ctx.Request.Url?.AbsolutePath;
+            bool isPost = string.Equals(ctx.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase);
+            if (isPost && path is "/permission" or "/usage" or "/notify" or "/debug-context")
             {
-                HookActivity?.Invoke();
-                await HandlePermissionRequestAsync(ctx, ct);
-                return;
+                // Read + parse the body ONCE here: the ownership gate needs the hook's cwd, and the
+                // request stream cannot be re-read by the handlers.
+                string rawBody;
+                using (var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8))
+                    rawBody = await reader.ReadToEndAsync();
+                JObject body;
+                try { body = JObject.Parse(rawBody); }
+                catch { body = new JObject(); } // malformed -> fail-open, handlers see empty fields
+
+                // Session-ownership gate (PR #28 rework): the hooks route by most-specific lockfile
+                // match but fall back to ANY listening VS bridge when no workspace matches the
+                // session's cwd - so another workspace's session can land its POSTs here. The hook now
+                // sends its cwd; a POST whose cwd is outside this bridge's workspace is answered
+                // benignly and IGNORED, so foreign sessions can't raise notifications, open diffs,
+                // pollute token stats, read this instance's debugger state, or trip the hooks-only
+                // banner. Missing cwd (older/user-owned script) or no open workspace -> fail-open.
+                if (!IsOwnSession(body, out string foreignCwd))
+                {
+                    Log.Info($"hook POST {path} ignored: session cwd '{foreignCwd}' is outside this workspace");
+                    await RespondForeignAsync(ctx, path!, ct);
+                    return;
+                }
+
+                HookActivity?.Invoke(); // after the gate: foreign traffic must not look like a local session
+                switch (path)
+                {
+                    case "/permission": await HandlePermissionRequestAsync(ctx, body, ct); return;
+                    case "/usage": await HandleUsageRequestAsync(ctx, body, ct); return;
+                    case "/notify": await HandleNotifyRequestAsync(ctx, body, ct); return;
+                    default: await HandleDebugContextRequestAsync(ctx, ct); return;
+                }
             }
-            if (string.Equals(ctx.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase)
-                && ctx.Request.Url?.AbsolutePath == "/usage")
-            {
-                HookActivity?.Invoke();
-                await HandleUsageRequestAsync(ctx, ct);
-                return;
-            }
-            if (string.Equals(ctx.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase)
-                && ctx.Request.Url?.AbsolutePath == "/notify")
-            {
-                HookActivity?.Invoke();
-                await HandleNotifyRequestAsync(ctx, ct);
-                return;
-            }
-            if (string.Equals(ctx.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase)
-                && ctx.Request.Url?.AbsolutePath == "/debug-context")
-            {
-                HookActivity?.Invoke();
-                await HandleDebugContextRequestAsync(ctx, ct);
-                return;
-            }
-            if (string.Equals(ctx.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase)
+            if (isPost
                 && ctx.Request.Url?.AbsolutePath == "/mcp")
             {
                 await HandleMcpRequestAsync(ctx, DebugMcp, "/mcp", ct);
@@ -239,19 +248,67 @@ public sealed class IdeWebSocketServer
         }
     }
 
-    private async Task HandlePermissionRequestAsync(HttpListenerContext ctx, CancellationToken ct)
+    /// <summary>
+    /// The bridge's workspace root, for the session-ownership gate ahead of the hook endpoints.
+    /// Null/empty (or unset) disables the gate - a bridge with no folder open can't discriminate.
+    /// A provider (not a snapshot) because the workspace can load after the server starts.
+    /// </summary>
+    public Func<string?>? WorkspaceProvider { get; set; }
+
+    /// <summary>
+    /// True when the POSTing session belongs to this bridge's workspace: body.cwd equals the
+    /// workspace root or sits beneath it (separator-aware, case-insensitive, / == \). Fail-open on
+    /// a missing cwd (older or user-owned hook script) or no open workspace.
+    /// </summary>
+    private bool IsOwnSession(JObject body, out string cwd)
+    {
+        cwd = (string?)body["cwd"] ?? "";
+        if (cwd.Length == 0) return true;
+        var ws = WorkspaceProvider?.Invoke();
+        if (string.IsNullOrEmpty(ws)) return true;
+        string Norm(string p) => p.Replace('/', '\\').TrimEnd('\\');
+        string c = Norm(cwd), w = Norm(ws!);
+        return c.Equals(w, StringComparison.OrdinalIgnoreCase)
+            || c.StartsWith(w + "\\", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Benign answer for a foreign session's hook POST. /permission gets ask=true - the hook hands
+    /// the decision back to the CLI's own permission prompt (NEVER auto-allow a session this VS
+    /// can't review); /debug-context gets the inject-nothing envelope; the observe-only endpoints
+    /// get an empty 200. Always 200: the hooks are fail-open and an error would read as a fault.
+    /// </summary>
+    private static async Task RespondForeignAsync(HttpListenerContext ctx, string path, CancellationToken ct)
+    {
+        try
+        {
+            string json = path switch
+            {
+                "/permission" => new JObject
+                {
+                    ["allow"] = false,
+                    ["ask"] = true,
+                    ["reason"] = "Session folder is outside this Visual Studio's workspace.",
+                }.ToString(Formatting.None),
+                "/debug-context" => "{\"mode\":\"unknown\"}",
+                _ => "{}",
+            };
+            var bytes = Encoding.UTF8.GetBytes(json);
+            ctx.Response.StatusCode = 200;
+            ctx.Response.ContentType = "application/json; charset=utf-8"; // no charset -> PS 5.1 clients decode as Latin-1
+            ctx.Response.ContentLength64 = bytes.Length;
+            await ctx.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length, ct);
+            ctx.Response.Close();
+        }
+        catch { /* client gave up */ }
+    }
+
+    private async Task HandlePermissionRequestAsync(HttpListenerContext ctx, JObject o, CancellationToken ct)
     {
         bool allow = true; // fail-open: never block the CLI because our review path errored
         string? reason = null;
         try
         {
-            string body;
-            // Always read as UTF-8 (the hook sends UTF-8). Trusting ContentEncoding can mangle
-            // non-ASCII content (em-dashes, smart quotes) into invalid JSON.
-            using (var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8))
-                body = await reader.ReadToEndAsync();
-
-            var o = JObject.Parse(body);
             var filePath = (string?)o["filePath"] ?? "";
             var newContents = (string?)o["newContents"] ?? "";
             var transcript = (string?)o["transcript_path"];
@@ -287,17 +344,14 @@ public sealed class IdeWebSocketServer
         catch { /* client gave up */ }
     }
 
-    private async Task HandleUsageRequestAsync(HttpListenerContext ctx, CancellationToken ct)
+    private async Task HandleUsageRequestAsync(HttpListenerContext ctx, JObject o, CancellationToken ct)
     {
-        // The Stop hook is the only /usage caller, so any hit here means the turn ended. Signal first -
-        // the transcript parse below can be slow and the notification shouldn't wait on it.
+        // The Stop hook is the only /usage caller, so a (workspace-owned) hit here means the turn
+        // ended. Signal first - the transcript parse below can be slow and the notification
+        // shouldn't wait on it.
         try { StopReceived?.Invoke(); } catch { }
         try
         {
-            string body;
-            using (var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8))
-                body = await reader.ReadToEndAsync();
-            var o = JObject.Parse(body);
             var transcript = (string?)o["transcript_path"] ?? "";
             var handler = UsageHandler;
             if (handler != null && transcript.Length > 0)
@@ -319,14 +373,10 @@ public sealed class IdeWebSocketServer
         try { ctx.Response.StatusCode = 200; ctx.Response.Close(); } catch { /* client gave up */ }
     }
 
-    private async Task HandleNotifyRequestAsync(HttpListenerContext ctx, CancellationToken ct)
+    private async Task HandleNotifyRequestAsync(HttpListenerContext ctx, JObject o, CancellationToken ct)
     {
         try
         {
-            string body;
-            using (var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8))
-                body = await reader.ReadToEndAsync();
-            var o = JObject.Parse(body);
             var message = (string?)o["message"] ?? "";
             var handler = NotifyHandler;
             if (handler != null && message.Length > 0)
@@ -344,11 +394,8 @@ public sealed class IdeWebSocketServer
         string json = "{\"mode\":\"unknown\"}"; // fail-safe: the hook injects nothing on "unknown"
         try
         {
-            // The body (cwd) is currently unused - the bridge reads its own VS instance's debugger -
-            // but drain the stream so the request completes cleanly.
-            using (var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8))
-                await reader.ReadToEndAsync();
-
+            // The body (cwd) was consumed by the dispatch-level ownership gate; the handler itself
+            // just reads this VS instance's own debugger.
             var handler = DebugContextHandler;
             if (handler != null)
                 json = await handler(ct) ?? json;

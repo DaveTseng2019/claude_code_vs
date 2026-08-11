@@ -62,7 +62,10 @@ try {
             $j = Get-Content -Raw $f.FullName | ConvertFrom-Json
             if ($j.ideName -ne 'Visual Studio') { continue }
             $ws = if ($j.workspaceFolders) { [string]$j.workspaceFolders[0] } else { '' }
-            $match = [bool]($ws -and $p.cwd -and ($p.cwd -like ($ws + '*')))
+            # Separator-aware prefix match (case-insensitive, / and \ equivalent): 'C:\work\app' must
+            # NOT match a session in 'C:\work\app-service'.
+            $wsN = ($ws -replace '/', '\').TrimEnd('\'); $cwdN = ([string]$p.cwd -replace '/', '\').TrimEnd('\')
+            $match = [bool]($wsN -and $cwdN -and (($cwdN -eq $wsN) -or ($cwdN -like ($wsN + '\*'))))
             $cands += [pscustomobject]@{ Port = [int]$f.BaseName; Token = $j.authToken; Score = (([int]$match) * 1000000 + $ws.Length) }
         } catch { }
     }
@@ -75,7 +78,10 @@ try {
     # Pass the CLI's own permission mode through: when the user chose acceptEdits / bypassPermissions
     # for the session, the bridge allows without opening the diff (our gate must never be stricter
     # than the user's explicit CLI-level choice). Absent on older CLIs -> bridge gates as always.
-    $body = @{ filePath = $file; newContents = $new; transcript_path = $p.transcript_path; permissionMode = [string]$p.permission_mode } | ConvertTo-Json -Compress -Depth 8
+    # cwd rides along so the bridge can refuse to gate a session that belongs to a DIFFERENT workspace
+    # (the zero-match fallback above can land on the wrong VS instance - PR #28). The bridge answers
+    # ask=true for those, handing the decision back to the CLI's own permission prompt.
+    $body = @{ filePath = $file; newContents = $new; transcript_path = $p.transcript_path; permissionMode = [string]$p.permission_mode; cwd = [string]$p.cwd } | ConvertTo-Json -Compress -Depth 8
     # Send the body as explicit UTF-8 bytes; Invoke-RestMethod's default string encoding mangles
     # non-ASCII content (em-dashes, smart quotes) into invalid JSON.
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($body)
@@ -84,7 +90,12 @@ try {
         -Headers @{ 'x-claude-code-ide-authorization' = $token } `
         -Body $bytes -TimeoutSec 86400
 
-    if ($resp.allow) {
+    if ($resp.ask) {
+        # The bridge declined to gate: this session's folder is outside that VS's workspace, so the
+        # decision belongs to the CLI's own permission prompt - never auto-allow a foreign session.
+        Emit 'ask' 'This session is outside the reachable Visual Studio workspace - review in the terminal.'
+    }
+    elseif ($resp.allow) {
         Emit 'allow' 'Accepted in Visual Studio diff'
     }
     else {
