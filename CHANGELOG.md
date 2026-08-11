@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.17.0 - 2026-08-12
+
+The first release built on community PRs — both headline changes started as contributions from [@DaveTseng2019](https://github.com/DaveTseng2019).
+
+### Features
+
+- **A "Claude Code" submenu on the editor right-click menu** ([#27](https://github.com/firish/claude_code_vs/pull/27)): **Explain** stages the selected code as a text attachment with an instruction header ("Explain this code from Foo.cs (lines 12-30):") — insert-not-submit, so it lands in the CLI composer for you to send; **Add to Chat** `@`-mentions the current file and line range in place (or the whole file with nothing selected) — no more typing paths to point Claude at code. Works offline too: Explain's attachment stages as a chip and delivers when Claude connects.
+
+### Fixes
+
+- **Hook traffic from other workspaces' sessions is now ignored** ([#28](https://github.com/firish/claude_code_vs/pull/28) — reported and diagnosed by @DaveTseng2019, reworked to the routing layer in review). The hooks route by workspace match but fall back to *any* listening VS bridge when nothing matches, so an unrelated session could raise this instance's notifications, open review diffs for foreign edits, pollute the panel's token stats, and read this instance's debugger state into its own context. Every hook POST now carries the session's folder and the bridge ignores foreign sessions in one place, ahead of all four hook endpoints; a foreign edit falls back to the CLI's own permission prompt (`ask`), never auto-allowed. Plain-terminal sessions in *this* workspace keep full notifications — the fix distinguishes "whose session" rather than "is anything connected".
+- **Workspace matching is separator-aware**: a session in `C:\work\app-service` no longer matches an instance open on `C:\work\app`.
+
 ## 1.16.0 - 2026-08-06
 
 ### Features
