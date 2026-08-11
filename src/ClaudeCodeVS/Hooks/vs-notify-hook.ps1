@@ -29,7 +29,10 @@ try {
             $j = Get-Content -Raw $f.FullName | ConvertFrom-Json
             if ($j.ideName -ne 'Visual Studio') { continue }
             $ws = if ($j.workspaceFolders) { [string]$j.workspaceFolders[0] } else { '' }
-            $match = [bool]($ws -and $p.cwd -and ($p.cwd -like ($ws + '*')))
+            # Separator-aware prefix match (case-insensitive, / and \ equivalent): 'C:\work\app' must
+            # NOT match a session in 'C:\work\app-service'.
+            $wsN = ($ws -replace '/', '\').TrimEnd('\'); $cwdN = ([string]$p.cwd -replace '/', '\').TrimEnd('\')
+            $match = [bool]($wsN -and $cwdN -and (($cwdN -eq $wsN) -or ($cwdN -like ($wsN + '\*'))))
             $cands += [pscustomobject]@{ Port = [int]$f.BaseName; Token = $j.authToken; Score = (([int]$match) * 1000000 + $ws.Length) }
         } catch { }
     }
@@ -39,7 +42,9 @@ try {
     }
     if (-not $port) { exit 0 }
 
-    $body = @{ message = $msg } | ConvertTo-Json -Compress
+    # cwd rides along so the bridge can ignore a session that belongs to a different workspace
+    # (the zero-match fallback above can land on the wrong VS instance - PR #28).
+    $body = @{ message = $msg; cwd = [string]$p.cwd } | ConvertTo-Json -Compress
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($body)
     Invoke-RestMethod -Uri "http://127.0.0.1:$port/notify" -Method Post `
         -ContentType 'application/json; charset=utf-8' `
