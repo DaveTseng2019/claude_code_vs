@@ -3,6 +3,7 @@ using System.ComponentModel.Design;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using ClaudeCodeVs.Protocol;
 using ClaudeCodeVs.Ui;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
@@ -54,6 +55,10 @@ public sealed class ClaudeCodeVsPackage : AsyncPackage
                 new CommandID(PackageGuids.CommandSet, PackageIds.LaunchClaude)));
             mcs.AddCommand(new MenuCommand(OnShowPanel,
                 new CommandID(PackageGuids.CommandSet, PackageIds.ShowPanel)));
+            mcs.AddCommand(new MenuCommand(OnExplain,
+                new CommandID(PackageGuids.CommandSet, PackageIds.Explain)));
+            mcs.AddCommand(new MenuCommand(OnAddToChat,
+                new CommandID(PackageGuids.CommandSet, PackageIds.AddToChat)));
         }
     }
 
@@ -95,6 +100,33 @@ public sealed class ClaudeCodeVsPackage : AsyncPackage
             ErrorHandler.ThrowOnFailure(frame.Show());
     }
 
+    // Editor right-click ("Claude Code" submenu): Explain stages the selection as a text attachment
+    // with an instruction header (same insert-not-submit staging as a pasted prompt); Add to Chat just
+    // @-mentions the file/line-range in place. Both read SelectionService.Current, kept live by the
+    // MEF TextViewListener.
+    private void OnExplain(object sender, EventArgs e)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        var sel = Editor.SelectionService.Current;
+        if (sel.IsEmpty)
+        {
+            Log.Warn("Explain: select some code first.");
+            return;
+        }
+        var header = sel.FilePath is null
+            ? "Explain this code:"
+            : $"Explain this code from {System.IO.Path.GetFileName(sel.FilePath)} (lines {sel.StartLine + 1}-{sel.EndLineInclusive + 1}):";
+        JoinableTaskFactory.RunAsync(() => Attachments.AttachmentService.StageTextAsync(header + "\n\n" + sel.Text))
+            .FileAndForget("claudecodevs/explain");
+    }
+
+    private void OnAddToChat(object sender, EventArgs e)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        JoinableTaskFactory.RunAsync(() => Editor.SelectionService.MentionCurrentAsync())
+            .FileAndForget("claudecodevs/addToChat");
+    }
+
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -115,4 +147,6 @@ internal static class PackageIds
     // Must match the IDSymbol values in VSCommandTable.vsct.
     public const int LaunchClaude = 0x0100;
     public const int ShowPanel = 0x0101;
+    public const int Explain = 0x0102;
+    public const int AddToChat = 0x0103;
 }

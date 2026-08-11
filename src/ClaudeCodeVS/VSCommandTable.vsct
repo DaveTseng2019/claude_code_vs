@@ -13,7 +13,30 @@
       <Group guid="guidClaudeCmdSet" id="ClaudeMenuGroup" priority="0x0600">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS" />
       </Group>
+      <Group guid="guidClaudeCmdSet" id="ClaudeCtxMenuGroup" priority="0x0100">
+        <Parent guid="guidClaudeCmdSet" id="ClaudeCtxMenu" />
+      </Group>
+      <!-- The Menu below can't be parented directly to a menu ID - it needs a Group in between,
+           same as ClaudeMenuGroup does for the Tools menu placement above. MID priority on purpose:
+           the code editor's right-click menu is the most muscle-memory-sensitive surface in VS, so
+           the submenu sits below the navigation block (Go To Definition etc.), roughly where
+           Copilot's entries live - never at the very top. -->
+      <Group guid="guidClaudeCmdSet" id="ClaudeCtxTopGroup" priority="0x0200">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
+      </Group>
     </Groups>
+
+    <!-- Editor right-click submenu: "Claude Code" -> Explain / Add to Chat. Named for the brand,
+         matching the Tools and View > Other Windows entries (one brand, not a third variant). -->
+    <Menus>
+      <Menu guid="guidClaudeCmdSet" id="ClaudeCtxMenu" priority="0x0001" type="Menu">
+        <Parent guid="guidClaudeCmdSet" id="ClaudeCtxTopGroup" />
+        <Strings>
+          <ButtonText>Claude Code</ButtonText>
+          <CommandName>Claude Code</CommandName>
+        </Strings>
+      </Menu>
+    </Menus>
 
     <Buttons>
       <Button guid="guidClaudeCmdSet" id="LaunchClaudeId" priority="0x0100" type="Button">
@@ -36,6 +59,22 @@
           <ButtonText>Claude Code</ButtonText>
         </Strings>
       </Button>
+      <Button guid="guidClaudeCmdSet" id="ExplainId" priority="0x0100" type="Button">
+        <Parent guid="guidClaudeCmdSet" id="ClaudeCtxMenuGroup" />
+        <Icon guid="ImageCatalogGuid" id="StatusHelp" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Explain</ButtonText>
+        </Strings>
+      </Button>
+      <Button guid="guidClaudeCmdSet" id="AddToChatId" priority="0x0110" type="Button">
+        <Parent guid="guidClaudeCmdSet" id="ClaudeCtxMenuGroup" />
+        <Icon guid="ImageCatalogGuid" id="Comment" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Add to Chat</ButtonText>
+        </Strings>
+      </Button>
     </Buttons>
   </Commands>
 
@@ -43,8 +82,13 @@
     <GuidSymbol name="guidClaudeCodeVsPackage" value="{d9032717-8a83-4ab5-9b63-2fe9d9a78481}" />
     <GuidSymbol name="guidClaudeCmdSet" value="{9495bbbb-756d-4dc4-807d-1408d50e7d33}">
       <IDSymbol name="ClaudeMenuGroup" value="0x1020" />
+      <IDSymbol name="ClaudeCtxMenu" value="0x1021" />
+      <IDSymbol name="ClaudeCtxMenuGroup" value="0x1022" />
+      <IDSymbol name="ClaudeCtxTopGroup" value="0x1023" />
       <IDSymbol name="LaunchClaudeId" value="0x0100" />
       <IDSymbol name="ShowPanelId" value="0x0101" />
+      <IDSymbol name="ExplainId" value="0x0102" />
+      <IDSymbol name="AddToChatId" value="0x0103" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

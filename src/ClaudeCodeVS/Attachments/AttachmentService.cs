@@ -364,7 +364,7 @@ internal static class AttachmentService
         => est is long t ? $" (≈{(t >= 1000 ? (t / 1000.0).ToString("0.0") + "k" : t.ToString())} tok)" : "";
 
     /// <summary>Workspace-relative forward-slash form, or null when the path is outside the workspace.</summary>
-    private static string? ToWorkspaceRelative(string fullPath)
+    internal static string? ToWorkspaceRelative(string fullPath)
     {
         var ws = Ui.BridgeStatus.Workspace;
         if (string.IsNullOrEmpty(ws)) return null;
