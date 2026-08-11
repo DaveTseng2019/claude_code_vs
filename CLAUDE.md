@@ -173,6 +173,7 @@ claude --version            # record the known-good version
 
 - **`Sec-WebSocket-Protocol: mcp` must be echoed** in the WS upgrade response. Without it the CLI connects (auth OK) then silently drops before `initialize` - looks like a mysterious disconnect. Undocumented; spike-confirmed vs CLI 2.1.169.
 - Contract is **undocumented and version-fragile** - pin `claude --version`, smoke-test on every bump.
+- **CLI 2.1.222+ ties project hooks to workspace TRUST**: a workspace missing its trust entry in `~/.claude.json` loads ZERO project hooks/MCP servers - session connects, banner fires, stats stay zero. Windows can silently lose trust entries via case-duplicate project keys (`c:/…` vs `C:/…`, upstream anthropics/claude-code#46586; VS launches with `C:`, VS Code with `c:`). Triage: `/hooks` in the terminal → empty = re-accept trust; dedupe the case-twins with all sessions closed (concurrent sessions orphan the `.claude.json.tmp.*` atomic-write files). Also since ~2.1.223, headless `claude -p` never opens the IDE WS - the spike's `--probe-cli` only proves launch+env; handshake verification needs an interactive session.
 - `runningInWindows: true` changes how the CLI checks PID liveness (`tasklist.exe` vs `ps`).
 - `new_file_contents` in `openDiff` is in-memory -> write to a temp file to feed the comparison; write to `new_file_path` only on Accept.
 - Debounce `selection_changed` (~100–200ms) or you'll flood the socket.

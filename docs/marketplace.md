@@ -14,7 +14,7 @@ Bring [Claude Code](https://claude.com/claude-code) into **Visual Studio 2026**.
 
 *A fresh Claude session driving the Visual Studio debugger to find a bug that is invisible in the output, then opening the fix in the native diff.*
 
-**Status:** community project, not affiliated with Anthropic. Visual Studio 2026 only for now. Tested against `claude` 2.1.221.
+**Status:** community project, not affiliated with Anthropic. Visual Studio 2026 only for now. Tested against `claude` 2.1.223.
 
 ## Why
 
@@ -121,7 +121,7 @@ A dockable Claude Code panel shows connection status, edit decisions, and token 
 
 - **Visual Studio 2026.**
 - **The Claude Code CLI**, installed and authenticated. See the [Claude Code docs](https://docs.claude.com/claude-code). This extension makes no model calls and does no agent work itself, so it needs the CLI.
-- Tested against `claude` 2.1.221.
+- Tested against `claude` 2.1.223.
 
 ## Install
 
@@ -156,7 +156,7 @@ This is a protocol bridge, not a re-implementation of the agent. On Launch it st
 ## Limitations and known issues
 
 - Visual Studio 2026 only for now. A VS 2022 backfill is planned if there is demand.
-- The integration protocol is undocumented and version-fragile, so a `claude` update could change it. Known-good: 2.1.221.
+- The integration protocol is undocumented and version-fragile, so a `claude` update could change it. Known-good: 2.1.223.
 - Diagnostics need a loaded project. The Error List and Roslyn will not analyze loose files.
 - Semantic navigation is C#/VB and needs a loaded project. It reads the Roslyn workspace, so it sees the solution open in Visual Studio, and it does not cover C++ navigation.
 - Debugger features target managed (.NET) code. Reading runtime state is always on, and driving execution is opt-in. Native and C++ runtime inspection is not covered.

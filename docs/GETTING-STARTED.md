@@ -12,7 +12,7 @@ The practical setup: install the extension, launch Claude connected to Visual St
 
 - **Visual Studio 2026.**
 - **The Claude Code CLI**, installed and authenticated. The extension makes no model calls and does no agent work itself, so it needs the CLI. See the [Claude Code docs](https://docs.claude.com/claude-code).
-- Tested against `claude` 2.1.221.
+- Tested against `claude` 2.1.223.
 
 ---
 
@@ -139,4 +139,5 @@ The same toggle gates the test tools that launch the debugger, `vs_debug_test` a
 - **`getDiagnostics` returns nothing.** Open the code as a project and confirm the error appears in the Error List. Loose files in Open-Folder mode have no compiler analysis.
 - **An attachment chip didn't show up in the CLI's input box.** The CLI drops the reference if it was mid-turn (or its agents view was focused) when you attached. Click the chip in the panel to send it again.
 - **No diff and no vs-* tools after starting `claude` in a subfolder.** Claude Code loads project settings (hooks, MCP servers) from its own project directory - starting in a subfolder like `obj\` resolves that elsewhere, so the workspace's `.claude` configuration is never loaded at all. Launch from the panel, which pins the working directory to the workspace root, or start `claude` at the root yourself.
+- **Everything stopped working right after a `claude` update.** Same symptom as above (the connected-but-hooks-didn't-load banner, stats frozen at zero) but from the workspace root. Newer CLIs (2.1.222+) tie project hooks to workspace **trust**: run `/hooks` in the claude terminal, and if it lists nothing, restart `claude` and accept the folder-trust prompt, then approve the `vs-debug` / `vs-semantic` servers. If it keeps recurring on Windows, open `~/.claude.json` and delete duplicate project entries that differ only by path casing (`c:/…` vs `C:/…`) - an upstream CLI bug ([anthropics/claude-code#46586](https://github.com/anthropics/claude-code/issues/46586)) that can eat trust records. Close other running claude sessions first, or the corrected file can't be saved.
 - **Filing a bug.** Include the **Output > Claude Code** pane contents and your `claude --version`.
