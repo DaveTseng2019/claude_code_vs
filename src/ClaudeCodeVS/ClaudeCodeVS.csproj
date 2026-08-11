@@ -86,6 +86,15 @@
     </Content>
   </ItemGroup>
 
+  <!-- UI strings (issue #20): neutral English + the Simplified Chinese satellite. The zh-Hans resx
+       builds into zh-Hans\ClaudeCodeVS.resources.dll, which must ride in the .vsix next to the main
+       assembly for VS-in-Chinese to pick it up (see the BundleSatelliteInVsix target). Accessors are
+       hand-written in Resources\Strings.cs - no designer file, the repo builds from the CLI. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Strings.resx" />
+    <EmbeddedResource Include="Resources\Strings.zh-Hans.resx" />
+  </ItemGroup>
+
   <!-- Hook scripts, embedded so the extension can write them into a workspace's .claude/ folder on
        launch: the single-gate PreToolUse hook and the Stop usage-stats hook. -->
   <ItemGroup>
@@ -142,6 +151,18 @@
     devenv's AppDomain - that's the conflict we hit). It is deliberately NOT a ProjectReference, so its
     assemblies never enter the extension's load context.
   -->
+  <!-- The VSSDK packaging targets include the primary assembly ($(IncludeAssemblyInVSIXContainer))
+       but NOT the current project's satellite assemblies, so place the zh-Hans satellite in the .vsix
+       explicitly. It must land in zh-Hans\ NEXT TO ClaudeCodeVS.dll (vsix root) - that's where .NET
+       probes for satellites of an assembly loaded from the extension folder. -->
+  <Target Name="BundleSatelliteInVsix" BeforeTargets="GetVsixSourceItems">
+    <ItemGroup>
+      <VSIXSourceItem Include="$(OutputPath)zh-Hans\$(AssemblyName).resources.dll">
+        <VSIXSubPath>zh-Hans</VSIXSubPath>
+      </VSIXSourceItem>
+    </ItemGroup>
+  </Target>
+
   <Target Name="BuildAndBundleClrMdWorker" BeforeTargets="GetVsixSourceItems">
     <MSBuild Projects="..\ClaudeCodeVS.ClrMdWorker\ClrMdWorker.csproj" Targets="Restore" Properties="Configuration=$(Configuration)" />
     <MSBuild Projects="..\ClaudeCodeVS.ClrMdWorker\ClrMdWorker.csproj" Targets="Build" Properties="Configuration=$(Configuration)" />

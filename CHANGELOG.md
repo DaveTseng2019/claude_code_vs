@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.16.0 - 2026-08-06
+
+### Features
+
+- **简体中文界面 / Simplified Chinese UI** ([#20](https://github.com/firish/claude_code_vs/issues/20)). The panel, dialogs, diff Accept/Reject bar, tooltips, and notifications now follow **Visual Studio's own display language** (Tools > Options > Environment > International Settings): run VS in 中文(简体) and the extension matches its surroundings - no setting on our side, and any string a future release hasn't translated yet falls back to English individually rather than breaking. English VS is byte-for-byte unchanged. Deliberately still English: the activity feed / Output-pane diagnostics (so bug reports stay greppable and answerable), and the `claude` CLI's own terminal chrome (upstream). The translation is maintained as part of every release; corrections are very welcome via issue or PR against `src/ClaudeCodeVS/Resources/Strings.zh-Hans.resx`.
+
+### Fixes
+
+- **A cold-start Launch can no longer open two Claude sessions.** When the native-terminal attempt stalled past its 10s timeout (ServiceHub still warming up), the external-console fallback launched - and the stalled attempt could then complete late and open a *second* claude in the docked terminal. The brokered-service acquisitions ignore cancellation during a cold start, so the launcher now gates explicitly at each boundary: a late-running attempt aborts before creating anything, with an activity-feed line saying the fallback won.
+- **Troubleshooting for the post-CLI-update "hooks didn't load" trap.** `claude` 2.1.222+ ties project hooks to workspace trust, and an upstream Windows bug (duplicate case-variant project entries in `~/.claude.json`, [anthropics/claude-code#46586](https://github.com/anthropics/claude-code/issues/46586)) can drop a workspace's trust record during an update - sessions then connect but load no hooks and no vs-* tools (the panel banner catches it). The remedy (`/hooks`, re-accept trust, dedupe the case-twin entries) is now in the README and getting-started troubleshooting. Protocol smoke-tested against `claude` 2.1.223 (spike self-test 14/14 + live IDE handshake); the spike's CLI probe now finds `claude.exe`/`claude.cmd` on Windows and notes that headless `-p` no longer opens the IDE channel on modern CLIs.
+
 ## 1.15.0 - 2026-08-04
 
 All four points of [#17](https://github.com/firish/claude_code_vs/issues/17) (v1.14.4 feedback), plus two features that came out of the same testing loop.

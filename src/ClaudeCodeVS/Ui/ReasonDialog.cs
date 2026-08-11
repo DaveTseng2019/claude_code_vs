@@ -17,7 +17,7 @@ internal sealed class ReasonDialog : DialogWindow
 
     private ReasonDialog(string fileName)
     {
-        Title = "Reject change";
+        Title = Strings.ReasonTitle;
         Width = 480;
         Height = 240;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -35,7 +35,7 @@ internal sealed class ReasonDialog : DialogWindow
 
         var prompt = new TextBlock
         {
-            Text = $"Tell Claude what to change about {fileName} (optional):",
+            Text = string.Format(Strings.ReasonPrompt, fileName),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 8),
         };
@@ -61,8 +61,8 @@ internal sealed class ReasonDialog : DialogWindow
             HorizontalAlignment = HorizontalAlignment.Right,
             Margin = new Thickness(0, 8, 0, 0),
         };
-        var ok = new Button { Content = "Send to Claude", IsDefault = true, MinWidth = 110, Margin = new Thickness(0, 0, 8, 0), Padding = new Thickness(8, 2, 8, 2) };
-        var cancel = new Button { Content = "Just reject", IsCancel = true, MinWidth = 90, Padding = new Thickness(8, 2, 8, 2) };
+        var ok = new Button { Content = Strings.BtnSendToClaude, IsDefault = true, MinWidth = 110, Margin = new Thickness(0, 0, 8, 0), Padding = new Thickness(8, 2, 8, 2) };
+        var cancel = new Button { Content = Strings.BtnJustReject, IsCancel = true, MinWidth = 90, Padding = new Thickness(8, 2, 8, 2) };
         ok.Click += (s, e) => { DialogResult = true; };
         buttons.Children.Add(ok);
         buttons.Children.Add(cancel);

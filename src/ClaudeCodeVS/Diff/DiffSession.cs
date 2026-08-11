@@ -16,9 +16,12 @@ namespace ClaudeCodeVs.Diff;
 /// </summary>
 internal sealed class DiffSession : IVsInfoBarUIEvents
 {
-    private const string Accept = "Accept";
-    private const string Reject = "Reject";
-    private const string RejectWithReason = "Reject with feedback…";
+    // Properties, not consts: they resolve through the localized resources (issue #20), and the
+    // click handler compares actionItem.Text against these same values, so the round-trip holds in
+    // any language (culture is fixed at package init, so the value can't change between render and click).
+    private static string Accept => Strings.DiffAccept;
+    private static string Reject => Strings.DiffReject;
+    private static string RejectWithReason => Strings.DiffRejectWithReason;
 
     private readonly DiffDecisions _decisions;
     private readonly string _tabName;
@@ -76,8 +79,8 @@ internal sealed class DiffSession : IVsInfoBarUIEvents
             rightFileMoniker: tempPath,
             caption: $"Claude Code: {fileName}",
             Tooltip: newPath,
-            leftLabel: $"{fileName} (current)",
-            rightLabel: $"{fileName} (Claude proposal)",
+            leftLabel: string.Format(Strings.DiffLeftLabel, fileName),
+            rightLabel: string.Format(Strings.DiffRightLabel, fileName),
             inlineLabel: null,
             roles: null,
             grfDiffOptions: 0);
@@ -117,7 +120,7 @@ internal sealed class DiffSession : IVsInfoBarUIEvents
         }
 
         var model = new InfoBarModel(
-            new[] { new InfoBarTextSpan($"Claude Code proposes changes to {Path.GetFileName(_newPath)}. ") },
+            new[] { new InfoBarTextSpan(string.Format(Strings.DiffProposes, Path.GetFileName(_newPath))) },
             new[] { new InfoBarHyperlink(Accept), new InfoBarHyperlink(Reject), new InfoBarHyperlink(RejectWithReason) },
             KnownMonikers.StatusInformation,
             isCloseButtonVisible: true);
