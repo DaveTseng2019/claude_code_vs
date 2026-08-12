@@ -39,7 +39,7 @@ One capture, ≈922 tokens, and everything on the screen became context. No past
 
 ## Tool catalog
 
-Both tools live on the `vs-debug` MCP server (`mcp__vs-debug__*`). Both require the **Allow screen capture** panel toggle. Neither returns pixels over MCP — each saves a PNG into the [attachment staging](QOL.md#attach-a-screenshot-or-any-file) (`.claude/attachments/`, gitignored) and returns the **path**, which Claude then Reads at native image-token cost (an MCP image block would cost ~10–20× as much — upstream anthropics/claude-code#31208).
+Both tools live on the `vs-debug` MCP server (`mcp__vs-debug__*`). Both require the **Allow screen capture** panel toggle. Neither returns pixels over MCP — each saves a PNG into the [attachment staging](QOL.md#attach-a-screenshot-or-any-file) (`.claude/attachments/`, gitignored) and returns the **path**, which Claude then Reads at native image-token cost (an MCP image block would cost ~10–20× as much — upstream anthropics/claude-code#31208, closed as stale by a bot rather than fixed).
 
 | Tool | What it captures |
 |---|---|
