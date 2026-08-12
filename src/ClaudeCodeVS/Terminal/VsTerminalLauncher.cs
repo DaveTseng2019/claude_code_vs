@@ -67,10 +67,9 @@ internal static class VsTerminalLauncher
         try
         {
             var terminalServiceType = FindType("Microsoft.VisualStudio.Terminal.ITerminalService");
-            var descriptorsType = FindType("Microsoft.VisualStudio.Terminal.TerminalServiceDescriptors");
             var windowOptionsType = FindType("Microsoft.VisualStudio.Terminal.TerminalWindowOptions");
             var profileConfigType = FindType("Microsoft.VisualStudio.Terminal.ProfileConfig");
-            if (terminalServiceType == null || descriptorsType == null || profileConfigType == null)
+            if (terminalServiceType == null || profileConfigType == null)
             {
                 Log.Warn("Native VS terminal: Microsoft.VisualStudio.Terminal types not found (VS edition/version mismatch) - falling back to external console.");
                 return false;
@@ -79,54 +78,28 @@ internal static class VsTerminalLauncher
             // VS 2022 (17.x) contract, where CreateTerminalAsync takes name/profile/cwd as plain args
             // (issue #12 follow-up: same service, older shape - dumped headlessly from 17.14's DLL).
 
-            var descriptor = descriptorsType
-                .GetProperty("TerminalServiceDescriptor", BindingFlags.Public | BindingFlags.Static)?
-                .GetValue(null) as ServiceRpcDescriptor;
-            if (descriptor == null)
-            {
-                Log.Warn("Native VS terminal: TerminalServiceDescriptor missing - falling back to external console.");
-                return false;
-            }
-
             await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(ct);
-            var containerObj = await AsyncServiceProvider.GlobalProvider.GetServiceAsync(typeof(SVsBrokeredServiceContainer));
-            if (containerObj is not IBrokeredServiceContainer container)
-            {
-                Log.Warn("Native VS terminal: SVsBrokeredServiceContainer unavailable - falling back to external console.");
-                return false;
-            }
-            IServiceBroker broker = container.GetFullAccessServiceBroker();
-            // GetServiceAsync above takes NO token, and on a cold ServiceHub it can stall long past our
-            // timeout - after which the fallback has already launched the external console. Explicit
-            // gates from here down keep a late-running attempt from opening a SECOND terminal (seen
-            // live 2026-08-06: 10s stall -> external console AND a late native tab, two sessions).
+            // The acquisition below can stall long past our timeout on a cold ServiceHub - after which
+            // the fallback has already launched the external console. Explicit gates from here down keep
+            // a late-running attempt from opening a SECOND terminal (seen live 2026-08-06: 10s stall ->
+            // external console AND a late native tab, two sessions).
             ct.ThrowIfCancellationRequested();
 
-            // T = ITerminalService is only known as a reflected Type, so the generic call needs
-            // MakeGenericMethod. Overload-tolerant lookup: a bare GetMethod("GetProxyAsync") throws
-            // AmbiguousMatchException the moment a ServiceHub.Framework servicing update adds an
-            // overload - issue #12, seen on VS2022 AND VS2026 (the assembly ships to both). Select the
-            // exact shape we call instead.
-            var getProxyOpen = PickMethod(typeof(IServiceBroker), "GetProxyAsync", m =>
-            {
-                if (!m.IsGenericMethodDefinition) return false;
-                var p = m.GetParameters();
-                return p.Length == 3
-                    && typeof(ServiceRpcDescriptor).IsAssignableFrom(p[0].ParameterType)
-                    && p[1].ParameterType == typeof(ServiceActivationOptions)
-                    && p[2].ParameterType == typeof(CancellationToken);
-            });
-            if (getProxyOpen == null)
-            {
-                Log.Warn("Native VS terminal: no compatible IServiceBroker.GetProxyAsync overload - falling back to external console.");
-                return false;
-            }
-            var getProxy = getProxyOpen.MakeGenericMethod(terminalServiceType);
-            object? terminalService = await UnwrapAsync(
-                getProxy.Invoke(broker, new object?[] { descriptor, default(ServiceActivationOptions), ct }));
+            // TWO acquisition routes, newest first. VS 18.9 (18.9.12105.275, 2026-08-12) REMOVED
+            // TerminalServiceDescriptors and moved the terminal off the brokered-service bus onto a
+            // classic VS service: SVsTerminalService -> IVsTerminalService.CreateTerminalService().
+            // Older VS - including every 17.x - only has the brokered descriptor. ITerminalService
+            // itself is unchanged on both, so everything downstream of here is shared.
+            bool viaBroker = false;
+            object? terminalService = await TryGetViaVsServiceAsync(ct);
             if (terminalService == null)
             {
-                Log.Warn("Native VS terminal: GetProxyAsync<ITerminalService> returned null - falling back to external console.");
+                terminalService = await TryGetViaBrokerAsync(terminalServiceType, ct);
+                viaBroker = terminalService != null;
+            }
+            if (terminalService == null)
+            {
+                Log.Warn("Native VS terminal: could not acquire ITerminalService via SVsTerminalService (18.9+) or the brokered descriptor (older) - falling back to external console.");
                 return false;
             }
 
@@ -240,8 +213,10 @@ internal static class VsTerminalLauncher
                 }
                 catch { /* best-effort cleanup; the profile cache is cosmetic */ }
 
-                // Brokered-service proxies must be disposed - each GetProxyAsync hands out a live RPC client.
-                (terminalService as IDisposable)?.Dispose();
+                // Brokered-service proxies must be disposed - each GetProxyAsync hands out a live RPC
+                // client. The 18.9+ SVsTerminalService route hands back a service the SHELL owns, so
+                // disposing that one would tear down state we don't own.
+                if (viaBroker) (terminalService as IDisposable)?.Dispose();
             }
         }
         catch (OperationCanceledException)
@@ -255,6 +230,88 @@ internal static class VsTerminalLauncher
         {
             Log.Warn($"Native VS terminal launch failed ({e.GetType().Name}: {e.Message}) - falling back to external console.");
             return false;
+        }
+    }
+
+    /// <summary>
+    /// VS 18.9+ route: the terminal is a classic VS service again. Both the service marker
+    /// (SVsTerminalService) and the interface (IVsTerminalService, whose sole member is
+    /// ITerminalService CreateTerminalService()) live in the reflection-loaded assembly, so the whole
+    /// hop is reflection - we can't name either type at compile time. Returns null (not throws) on any
+    /// miss so the caller can try the older brokered route.
+    /// </summary>
+    private static async Task<object?> TryGetViaVsServiceAsync(CancellationToken ct)
+    {
+        try
+        {
+            var markerType = FindType("Microsoft.VisualStudio.Terminal.SVsTerminalService");
+            var vsServiceType = FindType("Microsoft.VisualStudio.Terminal.IVsTerminalService");
+            if (markerType == null || vsServiceType == null) return null;
+
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(ct);
+            object? svc = await AsyncServiceProvider.GlobalProvider.GetServiceAsync(markerType);
+            if (svc == null) return null;
+            ct.ThrowIfCancellationRequested();
+
+            return PickMethod(vsServiceType, "CreateTerminalService", m => m.GetParameters().Length == 0)?
+                .Invoke(svc, null);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception e)
+        {
+            Log.Warn($"Native VS terminal: SVsTerminalService route unavailable ({e.GetType().Name}: {e.Message}) - trying the brokered route.");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Pre-18.9 route: ITerminalService came off the brokered-service bus, addressed by the static
+    /// TerminalServiceDescriptors.TerminalServiceDescriptor. VS 18.9 deleted that type outright, so
+    /// this is now the VS 2022 (17.x) / older-18.x path only. Returns null (not throws) on any miss.
+    /// </summary>
+    private static async Task<object?> TryGetViaBrokerAsync(Type terminalServiceType, CancellationToken ct)
+    {
+        try
+        {
+            var descriptorsType = FindType("Microsoft.VisualStudio.Terminal.TerminalServiceDescriptors");
+            var descriptor = descriptorsType?
+                .GetProperty("TerminalServiceDescriptor", BindingFlags.Public | BindingFlags.Static)?
+                .GetValue(null) as ServiceRpcDescriptor;
+            if (descriptor == null) return null;
+
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(ct);
+            var containerObj = await AsyncServiceProvider.GlobalProvider.GetServiceAsync(typeof(SVsBrokeredServiceContainer));
+            if (containerObj is not IBrokeredServiceContainer container) return null;
+            IServiceBroker broker = container.GetFullAccessServiceBroker();
+            // GetServiceAsync above takes NO token and can stall on a cold ServiceHub; gate before the
+            // proxy handout so a late completion never opens a terminal the fallback already replaced.
+            ct.ThrowIfCancellationRequested();
+
+            // T = ITerminalService is only known as a reflected Type, so the generic call needs
+            // MakeGenericMethod. Overload-tolerant lookup: a bare GetMethod("GetProxyAsync") throws
+            // AmbiguousMatchException the moment a ServiceHub.Framework servicing update adds an
+            // overload - issue #12, seen on VS2022 AND VS2026 (the assembly ships to both). Select the
+            // exact shape we call instead.
+            var getProxyOpen = PickMethod(typeof(IServiceBroker), "GetProxyAsync", m =>
+            {
+                if (!m.IsGenericMethodDefinition) return false;
+                var p = m.GetParameters();
+                return p.Length == 3
+                    && typeof(ServiceRpcDescriptor).IsAssignableFrom(p[0].ParameterType)
+                    && p[1].ParameterType == typeof(ServiceActivationOptions)
+                    && p[2].ParameterType == typeof(CancellationToken);
+            });
+            if (getProxyOpen == null) return null;
+
+            var getProxy = getProxyOpen.MakeGenericMethod(terminalServiceType);
+            return await UnwrapAsync(
+                getProxy.Invoke(broker, new object?[] { descriptor, default(ServiceActivationOptions), ct }));
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception e)
+        {
+            Log.Warn($"Native VS terminal: brokered route unavailable ({e.GetType().Name}: {e.Message}).");
+            return null;
         }
     }
 
