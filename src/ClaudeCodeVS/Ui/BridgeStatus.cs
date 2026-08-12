@@ -187,6 +187,10 @@ internal static class BridgeStatus
     /// <summary>Set by BridgeHost so the panel can bring the verbose Output pane forward (UI thread).</summary>
     public static Action? ShowOutputAction { get; set; }
 
+    /// <summary>Set by BridgeHost: focus the claude session's input (docked tab or external console)
+    /// so Enter sends what a context action just pushed into the composer. Best-effort.</summary>
+    public static Func<Task>? FocusClaudeAction { get; set; }
+
     /// <summary>Fired when status/stats/pending change.</summary>
     public static event Action? Changed;
 

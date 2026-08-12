@@ -18,6 +18,14 @@ namespace ClaudeCodeVs.Editor;
 /// </summary>
 internal static class ContextActions
 {
+    // ---- Add to Chat: mention + focus (Alt+K and the menu entry both land here) --------------------
+
+    public static async Task AddToChatAsync()
+    {
+        await SelectionService.MentionCurrentAsync();
+        FocusClaude(launchedJustNow: false);
+    }
+
     // ---- Explain: selection (embedded) or whole file (mentioned) ----------------------------------
 
     public static async Task ExplainAsync()
@@ -29,7 +37,7 @@ internal static class ContextActions
             Log.Warn("Explain: no active file.");
             return;
         }
-        EnsureSessionLaunching("Explain");
+        bool launched = EnsureSessionLaunching("Explain");
         var fileName = System.IO.Path.GetFileName(sel.FilePath);
 
         if (!sel.IsEmpty)
@@ -38,6 +46,7 @@ internal static class ContextActions
             var header = $"Explain this code from {fileName} (lines {a}-{b}):";
             await Attachments.AttachmentService.StageTextAsync(
                 header + "\n\n" + sel.Text, $"explain-{fileName}-L{a}-{b}");
+            FocusClaude(launched);
             return;
         }
 
@@ -47,6 +56,7 @@ internal static class ContextActions
             $"Explain the file {rel} (mentioned alongside this note): its purpose, structure, and how the pieces fit together.",
             $"explain-{fileName}");
         await SelectionService.MentionAsync(sel.FilePath, null, null, "Explain");
+        FocusClaude(launched);
     }
 
     // ---- Fix Errors: selection/file + its Error List diagnostics ----------------------------------
@@ -83,7 +93,7 @@ internal static class ContextActions
             if (inRange.Count > 0) { diags = inRange; scopedToSelection = true; }
         }
 
-        EnsureSessionLaunching("Fix Errors");
+        bool launched = EnsureSessionLaunching("Fix Errors");
         var rel = Attachments.AttachmentService.ToWorkspaceRelative(sel.FilePath) ?? fileName;
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"Fix these compiler diagnostics in {rel}{(scopedToSelection ? $" (selection, lines {sel.StartLine + 1}-{sel.EndLineInclusive + 1})" : "")}:");
@@ -102,6 +112,7 @@ internal static class ContextActions
         await SelectionService.MentionAsync(sel.FilePath,
             scopedToSelection ? (int?)sel.StartLine : null,
             scopedToSelection ? (int?)sel.EndLineInclusive : null, "Fix Errors");
+        FocusClaude(launched);
     }
 
     // ---- Generate Documentation / Add Comments: the function at the caret -------------------------
@@ -150,22 +161,24 @@ internal static class ContextActions
 
         if (fn != null)
         {
-            EnsureSessionLaunching(action);
+            bool launched = EnsureSessionLaunching(action);
             int a = fn.StartLine + 1, b = fn.EndLine + 1;
             await Attachments.AttachmentService.StageTextAsync(
                 headerForFunction(fn.DisplayName, rel, a, b), $"{stem}-{fileName}-L{a}-{b}");
             await SelectionService.MentionAsync(sel.FilePath, fn.StartLine, fn.EndLine, action);
+            FocusClaude(launched);
             return;
         }
 
         if (!sel.IsEmpty)
         {
             // No Roslyn (loose file, C++, no project) but the user told us the range themselves.
-            EnsureSessionLaunching(action);
+            bool launched = EnsureSessionLaunching(action);
             int a = sel.StartLine + 1, b = sel.EndLineInclusive + 1;
             await Attachments.AttachmentService.StageTextAsync(
                 headerForSelection(rel, a, b), $"{stem}-{fileName}-L{a}-{b}");
             await SelectionService.MentionAsync(sel.FilePath, sel.StartLine, sel.EndLineInclusive, action);
+            FocusClaude(launched);
             return;
         }
 
@@ -197,8 +210,7 @@ internal static class ContextActions
             return;
         }
 
-        EnsureSessionLaunching("Fix This Test");
-        var fileName = System.IO.Path.GetFileName(sel.FilePath);
+        bool launched = EnsureSessionLaunching("Fix This Test");
         var header =
             $"Run the test {fn.FullyQualifiedName} with the vs-debug tool vs_run_test. " +
             "If it fails, investigate and fix whichever is wrong - the code or the test: vs_debug_test stops at the throw with the exception and locals in view, " +
@@ -206,6 +218,7 @@ internal static class ContextActions
             "Re-run vs_run_test afterward to verify it passes. The test's source is mentioned alongside this note.";
         await Attachments.AttachmentService.StageTextAsync(header, $"fixtest-{fn.FullyQualifiedName.Split('.').Last()}");
         await SelectionService.MentionAsync(sel.FilePath, fn.StartLine, fn.EndLine, "Fix This Test");
+        FocusClaude(launched);
     }
 
     // ---- shared ------------------------------------------------------------------------------------
@@ -214,13 +227,28 @@ internal static class ContextActions
     /// Official-extension parity: an action with no session running launches one instead of failing.
     /// Fire-and-forget - staged .txt attachments deliver on connect via the tray's queued mentions;
     /// range mentions pushed before the connect may need the chip's click-to-re-mention.
+    /// Returns true when a launch was fired (callers then skip the explicit refocus - the fresh
+    /// terminal takes focus itself).
     /// </summary>
-    private static void EnsureSessionLaunching(string action)
+    private static bool EnsureSessionLaunching(string action)
     {
-        if (Ui.BridgeStatus.Connected) return;
+        if (Ui.BridgeStatus.Connected) return false;
         var launch = Ui.BridgeStatus.LaunchAction;
-        if (launch is null) return;
+        if (launch is null) return false;
         Log.Info($"{action}: no Claude session - launching one. Staged items deliver when it connects.");
         _ = launch();
+        return true;
+    }
+
+    /// <summary>
+    /// Focus the claude session's input so Enter sends what the action just pushed (the #33
+    /// focus-trap, solved). Skipped when the action just launched a session - the fresh terminal
+    /// takes focus on its own.
+    /// </summary>
+    private static void FocusClaude(bool launchedJustNow)
+    {
+        if (launchedJustNow) return;
+        var focus = Ui.BridgeStatus.FocusClaudeAction;
+        if (focus != null) _ = focus();
     }
 }

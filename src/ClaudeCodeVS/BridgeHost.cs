@@ -61,6 +61,7 @@ internal sealed class BridgeHost : IDisposable
         Ui.BridgeStatus.LaunchAction = () => LaunchClaudeAsync();
         Ui.BridgeStatus.LaunchExternalAction = () => LaunchClaudeAsync(forceExternal: true);
         Ui.BridgeStatus.ShowOutputAction = () => pane.Activate(); // panel's "Output" button (UI thread)
+        Ui.BridgeStatus.FocusClaudeAction = () => FocusClaudeAsync(); // context actions: focus so Enter sends
         Log.Info("Claude Code bridge starting…");
 
         // 2) Lockfile lifecycle: reap stale dead-PID files, then claim a free port. (build-plan §3)
@@ -640,7 +641,7 @@ internal sealed class BridgeHost : IDisposable
 
         try
         {
-            Process.Start(psi);
+            _externalCli = Process.Start(psi); // kept so the context actions can refocus its window
             Log.Info($"Launched Claude Code (port {_lockfile.Port}, cwd '{workspace ?? "(default)"}').");
         }
         catch (Exception e)
@@ -648,6 +649,29 @@ internal sealed class BridgeHost : IDisposable
             Log.Error($"Launch Claude Code failed: {e.Message}");
         }
     }
+
+    private Process? _externalCli;
+
+    /// <summary>
+    /// Bring the claude session's input to the foreground so Enter sends what a context action just
+    /// pushed into the composer (the #33 focus trap, solved instead of documented). Native docked tab
+    /// first (ShowAsync on the remembered guid), then the external console window we launched.
+    /// Best-effort - a /ide-connected terminal we didn't launch has no handle to focus.
+    /// </summary>
+    public async Task FocusClaudeAsync()
+    {
+        if (await Terminal.VsTerminalLauncher.TryFocusAsync(_cts.Token)) return;
+        try
+        {
+            var p = _externalCli;
+            if (p is { HasExited: false } && p.MainWindowHandle != IntPtr.Zero)
+                SetForegroundWindow(p.MainWindowHandle);
+        }
+        catch { /* focus is best-effort, never let it surface */ }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     public void Dispose()
     {

@@ -127,7 +127,7 @@ public sealed class ClaudeCodeVsPackage : AsyncPackage
         => JoinableTaskFactory.RunAsync(Editor.ContextActions.ExplainAsync).FileAndForget("claudecodevs/explain");
 
     private void OnAddToChat(object sender, EventArgs e)
-        => JoinableTaskFactory.RunAsync(Editor.SelectionService.MentionCurrentAsync).FileAndForget("claudecodevs/addToChat");
+        => JoinableTaskFactory.RunAsync(Editor.ContextActions.AddToChatAsync).FileAndForget("claudecodevs/addToChat");
 
     private void OnFixErrors(object sender, EventArgs e)
         => JoinableTaskFactory.RunAsync(Editor.ContextActions.FixErrorsAsync).FileAndForget("claudecodevs/fixErrors");
