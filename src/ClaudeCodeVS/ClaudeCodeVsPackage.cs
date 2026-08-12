@@ -80,6 +80,10 @@ public sealed class ClaudeCodeVsPackage : AsyncPackage
             };
             mcs.AddCommand(fixTest);
         }
+
+        // Once-per-marquee-release "what's new" InfoBar. No-op on routine releases
+        // (UpdateNotice.MarqueeVersion is null) and after the user has seen an armed one.
+        JoinableTaskFactory.RunAsync(Ui.UpdateNotice.ShowOnceAsync).FileAndForget("claudecodevs/updateNotice");
     }
 
     /// <summary>

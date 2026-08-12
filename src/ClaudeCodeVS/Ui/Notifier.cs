@@ -39,6 +39,28 @@ internal sealed class Notifier : IVsInfoBarUIEvents
     public static void Tip(string message)
         => Post(message, autoDismiss: true, feedWorthy: true);
 
+    /// <summary>
+    /// A sticky announcement with one hyperlink (the marquee update notice). Returns true only when
+    /// the InfoBar actually rendered - the caller latches on success, so a too-early call retries on
+    /// the next start rather than burning its one showing. Respects the Notify toggle.
+    /// </summary>
+    public static async System.Threading.Tasks.Task<bool> AnnounceAsync(string message, string linkText, string url)
+    {
+        if (!BridgeStatus.NotifyEnabled) return false;
+        Log.Info($"notify: {message}");
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+        try
+        {
+            FlashTaskbarIfBackground();
+            return Show(message, autoDismiss: false, link: (linkText, url));
+        }
+        catch (Exception e)
+        {
+            Log.Warn($"announce failed: {e.Message}");
+            return false;
+        }
+    }
+
     /// <summary>Claude needs the user (Notification hook): permission prompt or idle. Stays up until dismissed.</summary>
     public static void NeedsAttention(string message)
     {
@@ -74,7 +96,7 @@ internal sealed class Notifier : IVsInfoBarUIEvents
         catch (Exception e) { Log.Warn($"notify failed: {e.Message}"); }
     }
 
-    private static void Show(string message, bool autoDismiss)
+    private static bool Show(string message, bool autoDismiss, (string text, string url)? link = null)
     {
         ThreadHelper.ThrowIfNotOnUIThread();
 
@@ -83,25 +105,30 @@ internal sealed class Notifier : IVsInfoBarUIEvents
         if (shell is null || factory is null)
         {
             Log.Warn("notify: InfoBar services unavailable");
-            return;
+            return false;
         }
         if (ErrorHandler.Failed(shell.GetProperty((int)__VSSPROPID7.VSSPROPID_MainWindowInfoBarHost, out var hostObj))
             || hostObj is not IVsInfoBarHost host)
         {
             Log.Warn("notify: main-window InfoBar host unavailable");
-            return;
+            return false;
         }
 
         CloseCurrent(); // one notification at a time - the newest supersedes
 
-        var model = new InfoBarModel($"Claude Code:  {message}", KnownMonikers.StatusInformation, isCloseButtonVisible: true);
+        // The hyperlink's ActionContext carries its URL; OnActionItemClicked opens it.
+        var model = link is { } l
+            ? new InfoBarModel($"Claude Code:  {message}",
+                new[] { new InfoBarHyperlink(l.text, l.url) },
+                KnownMonikers.StatusInformation, isCloseButtonVisible: true)
+            : new InfoBarModel($"Claude Code:  {message}", KnownMonikers.StatusInformation, isCloseButtonVisible: true);
         var element = factory.CreateInfoBar(model);
         var bar = new Notifier(element);
         element.Advise(bar, out bar._cookie);
         host.AddInfoBar(element);
         lock (Gate) _current = bar;
 
-        if (!autoDismiss) return;
+        if (!autoDismiss) return true;
 #pragma warning disable VSSDK007
         ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
         {
@@ -113,6 +140,7 @@ internal sealed class Notifier : IVsInfoBarUIEvents
                 try { element.Close(); } catch { /* window may be tearing down */ }
         }).FileAndForget("claudecodevs/notifyDismiss");
 #pragma warning restore VSSDK007
+        return true;
     }
 
     private static void CloseCurrent()
@@ -126,7 +154,14 @@ internal sealed class Notifier : IVsInfoBarUIEvents
 
     public void OnActionItemClicked(IVsInfoBarUIElement infoBarUIElement, IVsInfoBarActionItem actionItem)
     {
-        // No action links - the close button is the only control.
+        // The only action items we create are hyperlinks whose ActionContext is their URL
+        // (the marquee notice's "Release notes" link).
+        if (actionItem?.ActionContext is string url
+            && (url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)))
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); }
+            catch (Exception e) { Log.Warn($"open link failed: {e.Message}"); }
+        }
     }
 
     public void OnClosed(IVsInfoBarUIElement infoBarUIElement)
