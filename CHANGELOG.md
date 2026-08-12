@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.18.0 - 2026-08-13
+
+The context menu grows up ([#34](https://github.com/firish/claude_code_vs/pull/34), closing [#29](https://github.com/firish/claude_code_vs/issues/29) and [#31](https://github.com/firish/claude_code_vs/issues/31)), informed by a competitive scan of the official Claude Code VS Code extension, Copilot's VS 2026 context actions, and Cursor.
+
+### Features
+
+- **Four edit actions in the "Claude Code" flyout**, below a separator that splits *give Claude context* from *ask Claude to change the file*: **Fix Errors** (stages the selection/file with its *actual* Error List diagnostics and asks for the smallest correct fix, re-verified via `getDiagnostics`), **Generate Documentation** and **Add Comments** (resolve the **function at the caret** via Roslyn - no selection needed; accessors resolve to their property; VB works too - and mention its exact line span with style-matching instructions), and **Fix This Test** (appears in test files; hands Claude the `vs_run_test` → debug-at-the-throw / catch-flaky → fix → re-run loop addressing the real FQN). Every edit still arrives through the diff gate.
+- **`Alt+K` on Add to Chat** (text-editor scope) - the official VS Code extension's exact shortcut for inserting an `@`-mention of the current file and selection.
+- **Focus follows intent.** After every context action, a chip click, or the composer's Attach, the claude terminal (docked tab or external console) takes keyboard focus - Enter sends immediately. Raw paste/drop into the panel deliberately keeps focus in the panel for batch staging; `docs/QOL.md` documents the split ("Where focus goes, by design").
+- **Explain polish**: whole-file explain when nothing is selected, and self-describing staged filenames (`explain-Program.cs-L17-20.txt` instead of `paste-<timestamp>.txt`), so the composer reference says what it is.
+- **Actions launch a session when none is running** - staged items deliver on connect instead of the click dying into a feed warning.
+
 ## 1.17.1 - 2026-08-12
 
 Same-day patch: Visual Studio 18.9 (released today) silently broke the docked terminal. Both changes contributed by [@DaveTseng2019](https://github.com/DaveTseng2019).
