@@ -191,12 +191,15 @@ internal static class VsTerminalLauncher
                     }
                 }
 
-                if (guidResult is not Guid)
+                if (guidResult is not Guid terminalGuid)
                 {
                     Log.Warn("Native VS terminal: terminal creation returned no guid - falling back to external console.");
                     return false;
                 }
 
+                // Remember the tab so the context actions can refocus it (ShowAsync) after they push
+                // an @ reference - otherwise Enter goes to the editor, not the composer (the #33 trap).
+                _lastTerminal = terminalGuid;
                 Log.Info($"Launched Claude Code in VS's native Terminal window ({surface}, port {ssePort}, cwd '{workingDirectory ?? "(default)"}').");
                 return true;
             }
@@ -229,6 +232,53 @@ internal static class VsTerminalLauncher
         catch (Exception e)
         {
             Log.Warn($"Native VS terminal launch failed ({e.GetType().Name}: {e.Message}) - falling back to external console.");
+            return false;
+        }
+    }
+
+    /// <summary>The docked claude tab from the most recent native launch (Guid.Empty = none this session).</summary>
+    private static Guid _lastTerminal;
+
+    /// <summary>
+    /// Bring the docked claude terminal to the front WITH keyboard focus, so Enter sends what a
+    /// context action just pushed into the composer. Best-effort: false when no native tab was
+    /// launched this session (external console, /ide-connected terminal, restored tab) or the
+    /// service/ShowAsync isn't reachable - callers fall back or no-op, never error.
+    /// </summary>
+    public static async Task<bool> TryFocusAsync(CancellationToken ct)
+    {
+        if (_lastTerminal == Guid.Empty) return false;
+        try
+        {
+            var terminalServiceType = FindType("Microsoft.VisualStudio.Terminal.ITerminalService");
+            if (terminalServiceType == null) return false;
+
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(ct);
+            bool viaBroker = false;
+            object? svc = await TryGetViaVsServiceAsync(ct);
+            if (svc == null)
+            {
+                svc = await TryGetViaBrokerAsync(terminalServiceType, ct);
+                viaBroker = svc != null;
+            }
+            if (svc == null) return false;
+
+            try
+            {
+                var show = PickMethod(terminalServiceType, "ShowAsync",
+                    m => m.GetParameters().Length == 2 && m.GetParameters()[0].ParameterType == typeof(Guid));
+                if (show == null) return false;
+                await UnwrapAsync(show.Invoke(svc, new object?[] { _lastTerminal, ct }));
+                return true;
+            }
+            finally
+            {
+                if (viaBroker) (svc as IDisposable)?.Dispose(); // 18.9+ service is shell-owned (see #32)
+            }
+        }
+        catch (Exception e)
+        {
+            Log.Event($"focus terminal failed (harmless): {e.Message}");
             return false;
         }
     }

@@ -16,6 +16,12 @@
       <Group guid="guidClaudeCmdSet" id="ClaudeCtxMenuGroup" priority="0x0100">
         <Parent guid="guidClaudeCmdSet" id="ClaudeCtxMenu" />
       </Group>
+      <!-- Edit actions (Fix Errors / Generate Documentation / Add Comments / Fix This Test) in their
+           own group: the group boundary renders as a separator between "give Claude context" above
+           and "ask Claude to change the file" below. -->
+      <Group guid="guidClaudeCmdSet" id="ClaudeCtxEditGroup" priority="0x0200">
+        <Parent guid="guidClaudeCmdSet" id="ClaudeCtxMenu" />
+      </Group>
       <!-- The Menu below can't be parented directly to a menu ID - it needs a Group in between,
            same as ClaudeMenuGroup does for the Tools menu placement above. MID priority on purpose:
            the code editor's right-click menu is the most muscle-memory-sensitive surface in VS, so
@@ -75,8 +81,50 @@
           <ButtonText>Add to Chat</ButtonText>
         </Strings>
       </Button>
+      <Button guid="guidClaudeCmdSet" id="FixErrorsId" priority="0x0100" type="Button">
+        <Parent guid="guidClaudeCmdSet" id="ClaudeCtxEditGroup" />
+        <Icon guid="ImageCatalogGuid" id="Repair" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Fix Errors</ButtonText>
+        </Strings>
+      </Button>
+      <Button guid="guidClaudeCmdSet" id="GenerateDocsId" priority="0x0110" type="Button">
+        <Parent guid="guidClaudeCmdSet" id="ClaudeCtxEditGroup" />
+        <Icon guid="ImageCatalogGuid" id="Document" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Generate Documentation</ButtonText>
+        </Strings>
+      </Button>
+      <Button guid="guidClaudeCmdSet" id="AddCommentsId" priority="0x0120" type="Button">
+        <Parent guid="guidClaudeCmdSet" id="ClaudeCtxEditGroup" />
+        <Icon guid="ImageCatalogGuid" id="AddComment" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Add Comments</ButtonText>
+        </Strings>
+      </Button>
+      <!-- Hidden outside test-looking files: BeforeQueryStatus (a filename heuristic - Roslyn is too
+           slow for menu-open) flips Visible, which needs DynamicVisibility. -->
+      <Button guid="guidClaudeCmdSet" id="FixTestId" priority="0x0130" type="Button">
+        <Parent guid="guidClaudeCmdSet" id="ClaudeCtxEditGroup" />
+        <Icon guid="ImageCatalogGuid" id="Test" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <CommandFlag>DynamicVisibility</CommandFlag>
+        <CommandFlag>DefaultInvisible</CommandFlag>
+        <Strings>
+          <ButtonText>Fix This Test</ButtonText>
+        </Strings>
+      </Button>
     </Buttons>
   </Commands>
+
+  <!-- Alt+K on Add to Chat, text-editor scope: the same muscle memory as the official VS Code
+       extension's "Insert @-Mention Reference" (Alt+K there too). -->
+  <KeyBindings>
+    <KeyBinding guid="guidClaudeCmdSet" id="AddToChatId" editor="guidTextEditor" mod1="Alt" key1="K" />
+  </KeyBindings>
 
   <Symbols>
     <GuidSymbol name="guidClaudeCodeVsPackage" value="{d9032717-8a83-4ab5-9b63-2fe9d9a78481}" />
@@ -85,10 +133,17 @@
       <IDSymbol name="ClaudeCtxMenu" value="0x1021" />
       <IDSymbol name="ClaudeCtxMenuGroup" value="0x1022" />
       <IDSymbol name="ClaudeCtxTopGroup" value="0x1023" />
+      <IDSymbol name="ClaudeCtxEditGroup" value="0x1024" />
       <IDSymbol name="LaunchClaudeId" value="0x0100" />
       <IDSymbol name="ShowPanelId" value="0x0101" />
       <IDSymbol name="ExplainId" value="0x0102" />
       <IDSymbol name="AddToChatId" value="0x0103" />
+      <IDSymbol name="FixErrorsId" value="0x0104" />
+      <IDSymbol name="GenerateDocsId" value="0x0105" />
+      <IDSymbol name="AddCommentsId" value="0x0106" />
+      <IDSymbol name="FixTestId" value="0x0107" />
     </GuidSymbol>
+    <!-- GUID_TextEditorFactory: scopes the Alt+K binding to the text editor. -->
+    <GuidSymbol name="guidTextEditor" value="{8B382828-6202-11D1-8870-0000F87579D2}" />
   </Symbols>
 </CommandTable>

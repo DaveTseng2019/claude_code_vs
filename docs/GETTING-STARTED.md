@@ -109,6 +109,10 @@ Formats behave three ways: **images (PNG/JPEG/GIF/WebP, ≤5 MB) and PDFs and te
 
 ---
 
+## Right-click actions
+
+Right-click in any editor: the **Claude Code** flyout covers the common asks - **Explain** and **Add to Chat** (`Alt+K`) hand Claude your selection or file; **Fix Errors**, **Generate Documentation**, and **Add Comments** ask for edits (which arrive through the diff gate like any other); **Fix This Test** appears in test files and drives the test tools. Nothing auto-submits - the reference lands in the CLI composer with the terminal focused, and Enter sends. Full reference: [`QOL.md`](QOL.md#the-editor-context-menu).
+
 ## Notifications
 
 For working in another window while Claude cooks. When a turn finishes, a notification bar appears across the top of the Visual Studio main window ("Claude finished responding.", auto-dismissing after a few seconds). When Claude needs you — a permission prompt in the terminal, or it went idle waiting for input — the bar shows the CLI's message and stays until you dismiss it. If Visual Studio is not the foreground app, its taskbar button also flashes a few times, the standard Windows "needs attention" signal.
