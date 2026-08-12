@@ -32,6 +32,7 @@ The demand for this is on the Claude Code tracker. These requests ask for what t
 - **Live debugger** - while you are paused at a breakpoint, Claude sees your program's runtime state (call stack, variable values, threads) and, opt-in, can drive the debugger: continue, step, set breakpoints, break at the throw site of an exception, set a data breakpoint that breaks (or traces the full change history) the moment a value changes, attach to a running app (a hosted web service or desktop app, not just F5), and pause a hung process to untangle a deadlock by following the lock-ownership chain across threads to the exact cycle. Full reference: [`docs/DEBUGGER.md`](docs/DEBUGGER.md).
 - **Test integration** - Claude discovers, runs, and debugs your unit tests through Visual Studio's Test Explorer engine: real per-test results (outcome, message, stack), re-run just the failures, and run a failing test under the debugger to stop at the fault, or hammer a flaky test until it fails and catch that iteration red-handed, paused inside the failure. Because it is the debugger's own session, a red test becomes a live investigation. Full reference: [`docs/TESTING.md`](docs/TESTING.md).
 - **Selection context** - Claude automatically knows the file and lines you are looking at.
+- **Right-click → Claude Code** - an editor context menu with the common asks one click away: **Explain** and **Add to Chat** (`Alt+K`) hand Claude your selection or file; **Fix Errors** bundles the code with its *actual* Error List diagnostics; **Generate Documentation** and **Add Comments** resolve the function at your caret through Roslyn - no selection needed; in test files, **Fix This Test** hands Claude the run → debug-at-the-throw → fix → re-run loop. Nothing auto-submits: references land in the CLI composer, the terminal gets focus so Enter sends, and every edit still goes through the diff gate. Full reference: [`docs/QOL.md`](docs/QOL.md#the-editor-context-menu).
 - **Claude in the IDE's own terminal** - Launch opens `claude` inside Visual Studio's docked Terminal tool window (the same group as Developer PowerShell), already connected - it docks and tabs like any other VS terminal instead of floating over your desktop. An **External console** button keeps the standalone-window option. Full reference: [`docs/QOL.md`](docs/QOL.md#claude-in-the-ides-own-terminal).
 - **Attach screenshots and files** - the Windows CLI cannot take a pasted screenshot at all, so the panel is the paste point: Win+Shift+S, click **Paste** (or drop files from Explorer), and an `@` reference lands directly in the CLI's input box with the real image attached. Every attachment shows an estimated token cost *before* you send, Excel/video/archives attach too (Claude gets the path and reaches for a script), and staged copies live in a gitignored `.claude/attachments/`. Full reference: [`docs/QOL.md`](docs/QOL.md#attach-a-screenshot-or-any-file).
 - **Screen capture: Claude takes its own screenshots (opt-in)** - two gated tools give Claude eyes: capture the debugged app's window, any window by title (the browser showing your site), the VS window, or the whole screen. Captures land in the attachment tray as visible chips with a token estimate, and the tool returns a path Claude Reads with real vision - UI layouts, images, rendered pages, text in windows that are not files. Off by default behind an **Allow screen capture** toggle; every capture is logged. Full reference: [`docs/VISION.md`](docs/VISION.md).
@@ -103,6 +104,18 @@ Most assistants navigate code by searching text, which misses indirect reference
 | decompile | the real body of `Enumerable.Sum` from the library, with `Math.Sqrt` falling back to SourceLink |
 
 It needs no debug session and works whenever a C#/VB solution is open. Details are in [`docs/SEMANTIC.md`](docs/SEMANTIC.md).
+
+### Right-click, and Claude is in the loop
+
+The **Claude Code** flyout sits mid-menu in the editor's right-click menu - below the Go To block, where you'd expect it:
+
+![The editor context menu with the Claude Code flyout below the navigation block](docs/images/right_click_menu.png)
+
+The separator inside is the design: above it, actions that *give Claude context* (**Explain**, **Add to Chat** with `Alt+K`); below it, actions that *ask Claude to change the file* (**Fix Errors** with the real Error List diagnostics attached, **Generate Documentation** and **Add Comments** resolved to the function at your caret by Roslyn - in test files a sixth entry, **Fix This Test**, hands Claude the run → debug → fix → re-run loop):
+
+![The Claude Code flyout: Explain, Add to Chat (Alt+K), then Fix Errors, Generate Documentation, Add Comments](docs/images/right_click_submenu.png)
+
+Every action stages a self-describing reference in the CLI composer (never auto-submits), focuses the terminal so Enter sends, and every resulting edit still comes through the diff gate. Details: [`docs/QOL.md`](docs/QOL.md#the-editor-context-menu).
 
 ### Claude in the IDE's own terminal
 
