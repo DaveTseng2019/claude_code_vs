@@ -56,37 +56,49 @@ internal static class SelectionService
     /// </summary>
     public static async Task MentionCurrentAsync()
     {
-        var server = _server;
-        if (server is null || !server.HasConnections)
-        {
-            Log.Warn("Add to Chat: Claude isn't connected.");
-            return;
-        }
-
         var info = Current;
         if (info.FilePath is null)
         {
             Log.Warn("Add to Chat: no active file.");
             return;
         }
+        await MentionAsync(info.FilePath, info.IsEmpty ? (int?)null : info.StartLine,
+                           info.IsEmpty ? (int?)null : info.EndLineInclusive, "Add to Chat");
+    }
 
-        var mentionPath = Attachments.AttachmentService.ToWorkspaceRelative(info.FilePath) ?? info.FilePath;
-        var @params = new JObject { ["filePath"] = mentionPath };
-        if (!info.IsEmpty)
+    /// <summary>
+    /// Push an at_mentioned for an arbitrary file (+ optional 0-based inclusive line range) - the
+    /// shared mention primitive behind Add to Chat and the function-scoped context actions
+    /// (Generate Documentation / Add Comments mention the enclosing function's span).
+    /// </summary>
+    public static async Task<bool> MentionAsync(string filePath, int? startLine, int? endLineInclusive, string action)
+    {
+        var server = _server;
+        if (server is null || !server.HasConnections)
         {
-            @params["lineStart"] = info.StartLine;
-            @params["lineEnd"] = info.EndLineInclusive;
+            Log.Warn($"{action}: Claude isn't connected.");
+            return false;
+        }
+
+        var mentionPath = Attachments.AttachmentService.ToWorkspaceRelative(filePath) ?? filePath;
+        var @params = new JObject { ["filePath"] = mentionPath };
+        if (startLine is int s && endLineInclusive is int e2)
+        {
+            @params["lineStart"] = s;
+            @params["lineEnd"] = e2;
         }
 
         try
         {
             await server.BroadcastNotificationAsync("at_mentioned", @params, CancellationToken.None);
-            var range = info.IsEmpty ? "" : $" (lines {info.StartLine + 1}-{info.EndLineInclusive + 1})";
-            Log.Info($"Add to Chat: mentioned '{System.IO.Path.GetFileName(info.FilePath)}'{range}.");
+            var range = startLine is int s2 && endLineInclusive is int e3 ? $" (lines {s2 + 1}-{e3 + 1})" : "";
+            Log.Info($"{action}: mentioned '{System.IO.Path.GetFileName(filePath)}'{range}.");
+            return true;
         }
         catch (Exception e)
         {
-            Log.Warn($"Add to Chat failed: {e.Message}");
+            Log.Warn($"{action} failed: {e.Message}");
+            return false;
         }
     }
 

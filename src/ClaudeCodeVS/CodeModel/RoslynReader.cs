@@ -90,6 +90,77 @@ internal static class RoslynReader
         "TestMethodAttribute", "DataTestMethodAttribute",                // MSTest
     };
 
+    // ---- Enclosing-function lookup (for the editor context actions) -------------------------------
+
+    /// <summary>Caret → enclosing-member result for the context-menu edit actions.</summary>
+    internal sealed class EnclosingFunction
+    {
+        public string DisplayName = "";        // e.g. "QuoteFor(Order)" - for instruction headers
+        public string FullyQualifiedName = ""; // e.g. "RefMaze.Program.QuoteFor" - what vs_run_test addresses
+        public int StartLine;                  // 0-based, whole declaration span
+        public int EndLine;                    // 0-based inclusive
+        public bool IsTest;                    // carries a known test attribute
+    }
+
+    /// <summary>
+    /// The function-shaped member (method / ctor / local function; an accessor reports its property)
+    /// enclosing file:line:column, with its full declaration span. Null when no project is loaded, the
+    /// file isn't in the solution, or the caret isn't inside a member. Language-agnostic on purpose
+    /// (GetEnclosingSymbol + DeclaringSyntaxReferences - no C#-only syntax types, so VB works too).
+    /// </summary>
+    public static async Task<EnclosingFunction?> GetEnclosingFunctionAsync(string filePath, int line, int column, CancellationToken ct)
+    {
+        try
+        {
+            var solution = await GetSolutionOffThreadAsync(ct);
+            if (solution == null || !solution.Projects.Any()) return null;
+
+            var norm = filePath.Replace('/', '\\');
+            var docId = solution.GetDocumentIdsWithFilePath(norm).FirstOrDefault()
+                     ?? solution.Projects.SelectMany(p => p.Documents)
+                            .FirstOrDefault(d => string.Equals(d.FilePath?.Replace('/', '\\'), norm, StringComparison.OrdinalIgnoreCase))?.Id;
+            var doc = docId == null ? null : solution.GetDocument(docId);
+            if (doc == null) return null;
+
+            var text = await doc.GetTextAsync(ct);
+            if (line < 0 || line >= text.Lines.Count) return null;
+            var tl = text.Lines[line];
+            int position = Math.Min(tl.Start + Math.Max(0, column), tl.End);
+
+            var model = await doc.GetSemanticModelAsync(ct);
+            if (model == null) return null;
+
+            IMethodSymbol? method = null;
+            for (var s = model.GetEnclosingSymbol(position, ct); s != null; s = s.ContainingSymbol)
+                if (s is IMethodSymbol m) { method = m; break; }
+            if (method == null) return null;
+            ISymbol target = method.AssociatedSymbol is IPropertySymbol prop ? prop : method;
+
+            // Locations on a method symbol span only the identifier; the declaration syntax carries
+            // the real body extent the mention/edit should cover.
+            var syntaxRef = target.DeclaringSyntaxReferences.FirstOrDefault()
+                         ?? method.DeclaringSyntaxReferences.FirstOrDefault();
+            if (syntaxRef == null) return null;
+            var node = await syntaxRef.GetSyntaxAsync(ct);
+            var span = node.SyntaxTree.GetLineSpan(node.Span);
+
+            var containing = target.ContainingType?.ToDisplayString();
+            return new EnclosingFunction
+            {
+                DisplayName = target.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+                FullyQualifiedName = string.IsNullOrEmpty(containing) ? target.Name : containing + "." + target.Name,
+                StartLine = span.StartLinePosition.Line,
+                EndLine = span.EndLinePosition.Line,
+                IsTest = method.GetAttributes().Any(a => a.AttributeClass != null && TestAttributeNames.Contains(a.AttributeClass.Name)),
+            };
+        }
+        catch (Exception e)
+        {
+            Log.Warn($"enclosing-function lookup failed: {e.Message}");
+            return null;
+        }
+    }
+
     /// <summary>
     /// Discover unit tests WITHOUT Test Explorer's internal result callback: scan the Roslyn model for
     /// methods carrying a known test attribute ([Fact]/[Theory]/[Test]/[TestMethod]/[TestCase]/…) and return

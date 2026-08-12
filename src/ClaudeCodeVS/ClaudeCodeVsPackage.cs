@@ -59,6 +59,26 @@ public sealed class ClaudeCodeVsPackage : AsyncPackage
                 new CommandID(PackageGuids.CommandSet, PackageIds.Explain)));
             mcs.AddCommand(new MenuCommand(OnAddToChat,
                 new CommandID(PackageGuids.CommandSet, PackageIds.AddToChat)));
+            mcs.AddCommand(new MenuCommand(OnFixErrors,
+                new CommandID(PackageGuids.CommandSet, PackageIds.FixErrors)));
+            mcs.AddCommand(new MenuCommand(OnGenerateDocs,
+                new CommandID(PackageGuids.CommandSet, PackageIds.GenerateDocs)));
+            mcs.AddCommand(new MenuCommand(OnAddComments,
+                new CommandID(PackageGuids.CommandSet, PackageIds.AddComments)));
+
+            // Fix This Test hides outside test-looking files. The visibility check must be instant
+            // (it runs on every right-click), so it's a filename heuristic - "test" in the name -
+            // not a Roslyn query; the real is-this-a-test resolution happens at click time.
+            var fixTest = new OleMenuCommand(OnFixTest,
+                new CommandID(PackageGuids.CommandSet, PackageIds.FixTest));
+            fixTest.BeforeQueryStatus += (s, _) =>
+            {
+                if (s is not OleMenuCommand cmd) return;
+                var file = Editor.SelectionService.Current.FilePath;
+                cmd.Visible = file != null
+                    && System.IO.Path.GetFileNameWithoutExtension(file).IndexOf("test", StringComparison.OrdinalIgnoreCase) >= 0;
+            };
+            mcs.AddCommand(fixTest);
         }
     }
 
@@ -100,32 +120,26 @@ public sealed class ClaudeCodeVsPackage : AsyncPackage
             ErrorHandler.ThrowOnFailure(frame.Show());
     }
 
-    // Editor right-click ("Claude Code" submenu): Explain stages the selection as a text attachment
-    // with an instruction header (same insert-not-submit staging as a pasted prompt); Add to Chat just
-    // @-mentions the file/line-range in place. Both read SelectionService.Current, kept live by the
-    // MEF TextViewListener.
+    // Editor right-click ("Claude Code" flyout): the action bodies live in Editor/ContextActions -
+    // each stages a self-describing instruction .txt and @-mentions the code it talks about
+    // (insert-not-submit; the composer receives the references, the user sends).
     private void OnExplain(object sender, EventArgs e)
-    {
-        ThreadHelper.ThrowIfNotOnUIThread();
-        var sel = Editor.SelectionService.Current;
-        if (sel.IsEmpty)
-        {
-            Log.Warn("Explain: select some code first.");
-            return;
-        }
-        var header = sel.FilePath is null
-            ? "Explain this code:"
-            : $"Explain this code from {System.IO.Path.GetFileName(sel.FilePath)} (lines {sel.StartLine + 1}-{sel.EndLineInclusive + 1}):";
-        JoinableTaskFactory.RunAsync(() => Attachments.AttachmentService.StageTextAsync(header + "\n\n" + sel.Text))
-            .FileAndForget("claudecodevs/explain");
-    }
+        => JoinableTaskFactory.RunAsync(Editor.ContextActions.ExplainAsync).FileAndForget("claudecodevs/explain");
 
     private void OnAddToChat(object sender, EventArgs e)
-    {
-        ThreadHelper.ThrowIfNotOnUIThread();
-        JoinableTaskFactory.RunAsync(() => Editor.SelectionService.MentionCurrentAsync())
-            .FileAndForget("claudecodevs/addToChat");
-    }
+        => JoinableTaskFactory.RunAsync(Editor.SelectionService.MentionCurrentAsync).FileAndForget("claudecodevs/addToChat");
+
+    private void OnFixErrors(object sender, EventArgs e)
+        => JoinableTaskFactory.RunAsync(Editor.ContextActions.FixErrorsAsync).FileAndForget("claudecodevs/fixErrors");
+
+    private void OnGenerateDocs(object sender, EventArgs e)
+        => JoinableTaskFactory.RunAsync(Editor.ContextActions.GenerateDocsAsync).FileAndForget("claudecodevs/generateDocs");
+
+    private void OnAddComments(object sender, EventArgs e)
+        => JoinableTaskFactory.RunAsync(Editor.ContextActions.AddCommentsAsync).FileAndForget("claudecodevs/addComments");
+
+    private void OnFixTest(object sender, EventArgs e)
+        => JoinableTaskFactory.RunAsync(Editor.ContextActions.FixTestAsync).FileAndForget("claudecodevs/fixTest");
 
     protected override void Dispose(bool disposing)
     {
@@ -149,4 +163,8 @@ internal static class PackageIds
     public const int ShowPanel = 0x0101;
     public const int Explain = 0x0102;
     public const int AddToChat = 0x0103;
+    public const int FixErrors = 0x0104;
+    public const int GenerateDocs = 0x0105;
+    public const int AddComments = 0x0106;
+    public const int FixTest = 0x0107;
 }
