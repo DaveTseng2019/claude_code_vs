@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.17.1 - 2026-08-12
+
+Same-day patch: Visual Studio 18.9 (released today) silently broke the docked terminal. Both changes contributed by [@DaveTseng2019](https://github.com/DaveTseng2019).
+
+### Fixes
+
+- **The docked "Claude Code" terminal works on VS 18.9** ([#32](https://github.com/firish/claude_code_vs/pull/32)). VS 18.9 removed the brokered-service descriptor the launcher acquired `ITerminalService` through, so every Launch silently fell back to the external console — the docked tab just disappeared. The launcher now tries the 18.9 route first (`SVsTerminalService`, the terminal's new classic-service home) and falls back to the brokered route on older VS including VS 2022; everything downstream is unchanged, and the external-console safety net still backstops both. Live-verified on 18.9.
+- **Docs: the paste-focus trap** ([#33](https://github.com/firish/claude_code_vs/pull/33)): if the `@` reference appears in the CLI's input box but Enter does nothing, keyboard focus is still in the panel (easy to hit with a floating panel overlapping the terminal) — click the terminal's input line. Also documented that pasting a screenshot *directly into the terminal* can never work (terminals pass text, not bitmaps — upstream [#26679](https://github.com/anthropics/claude-code/issues/26679)), and annotated that upstream #31208 (the MCP image-block token waste behind our paths-not-pixels rule) was bot-closed as stale, not fixed.
+
 ## 1.17.0 - 2026-08-12
 
 The first release built on community PRs — both headline changes started as contributions from [@DaveTseng2019](https://github.com/DaveTseng2019).
