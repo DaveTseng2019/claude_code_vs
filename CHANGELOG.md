@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.18.1 - 2026-08-13
+
+### Features
+
+- **A one-time "what's new" note, and the machinery behind it.** VS shows nothing when an extension updates, so headline features stay invisible to existing users. This release adds a deliberately rare notice surface: a single sticky InfoBar with a Release-notes link, shown **once per user, only on releases that explicitly arm it** - routine releases stay silent on purpose. This release arms it to point at the 1.18 right-click actions and the attach tray, the two most discovery-gated features in the extension.
+
 ## 1.18.0 - 2026-08-13
 
 The context menu grows up ([#34](https://github.com/firish/claude_code_vs/pull/34), closing [#29](https://github.com/firish/claude_code_vs/issues/29) and [#31](https://github.com/firish/claude_code_vs/issues/31)), informed by a competitive scan of the official Claude Code VS Code extension, Copilot's VS 2026 context actions, and Cursor.

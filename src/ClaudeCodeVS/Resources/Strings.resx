@@ -223,7 +223,7 @@
   <!-- MarqueeNoticeText is REWRITTEN per marquee release (see Ui/UpdateNotice.cs) - both resx files
        in the same change. Unused while UpdateNotice.MarqueeVersion is null. -->
   <data name="MarqueeNoticeText" xml:space="preserve">
-    <value>Updated: right-click any code for Fix Errors, Generate Documentation, and Add Comments - and Alt+K adds your selection to the chat.</value>
+    <value>New: right-click any code for Explain, Fix Errors, Generate Documentation, and Add Comments - Alt+K adds your selection to the chat. And the panel's attach tray takes the screenshot pastes the terminal can't.</value>
   </data>
   <data name="ReleaseNotesLink" xml:space="preserve">
     <value>Release notes</value>
