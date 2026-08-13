@@ -86,6 +86,14 @@ The separator is the design: **above it, actions that give Claude context** - *E
 
 Rules every entry follows: **insert-not-submit** (references land in the CLI composer; Enter is yours), each stages a **self-describing** `.txt` (`explain-Program.cs-L17-20.txt` - the reference says what it is), the action **focuses the claude terminal** so Enter sends immediately (see [Where focus goes](#where-focus-goes-by-design)), no session running means the action **launches one**, and every edit still arrives through the **diff gate**.
 
+## Add to Chat in Solution Explorer
+
+The editor flyout points Claude at the file you're *in*. **Add to Chat** on the Solution Explorer right-click menu points it at everything else: select one or more files, right-click, and each is `@`-mentioned whole-file - no line ranges, no typing paths.
+
+- **Folders work too**, and they aren't expanded here: the folder itself is mentioned and the CLI walks the tree, so `@Rules` costs one reference instead of one per file.
+- **Multi-select is the point** - "look at these three files" is select + right-click, and a selection spanning projects works the same way. Project and solution nodes deliberately have no entry; "read this whole project" is a different ask.
+- **The references arrive as chips** in the panel's attach tray, so each one keeps its token estimate and click-to-re-mention, and a selection made before Claude connects delivers itself on connect. Twenty items per invocation - the tray's chip bound.
+
 ## Troubleshooting
 
 - **`claude` opened in a separate console window instead of the docked terminal:** the native path failed or timed out and fell back - the reason is logged in **Output > Claude Code** (look for "Native VS terminal"). Everything still works; the fallback is by design.

@@ -69,7 +69,7 @@ internal static class AttachmentService
         _ = Task.Run(() => PruneStale());
     }
 
-    /// <summary>Stage dropped/pasted file paths and @-mention each. Any thread; IO stays off the UI thread.</summary>
+    /// <summary>Stage dropped/pasted files or folders and @-mention each. Any thread; IO stays off the UI thread.</summary>
     public static async Task StageFilesAsync(IReadOnlyList<string> paths)
     {
         foreach (var path in paths)
@@ -191,9 +191,18 @@ internal static class AttachmentService
 
     private static async Task StageOneFileAsync(string path)
     {
+        // A folder is mention-only: folder @-mentions are first-class in the CLI (it walks the tree
+        // itself), so there's nothing to read, copy or estimate here - the reference IS the payload.
+        if (Directory.Exists(path))
+        {
+            await AddAndSendAsync(Path.GetFullPath(path).TrimEnd('\\', '/'),
+                isImage: false, wasCopied: false, estTokens: null, needsTool: false);
+            return;
+        }
+
         if (!File.Exists(path))
         {
-            Log.Warn($"attach: '{path}' doesn't exist (folders aren't supported - drop files).");
+            Log.Warn($"attach: '{path}' doesn't exist.");
             return;
         }
 
