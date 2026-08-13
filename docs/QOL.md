@@ -64,6 +64,7 @@ What makes the tray more than a paste button:
 - **Every format attaches.** Images and PDFs and text are read directly; BMPs are transcoded to vision-ready PNGs; formats Claude cannot read directly (Excel, video, archives) attach as a labeled 🧰 chip - Claude gets the path and reaches for a script or tool on its own. Nothing is hard-rejected.
 - **Nothing lands in your repo.** Files already inside your workspace are referenced in place, never copied. Everything else (including pasted screenshots) is staged in `.claude/attachments/` behind a self-ignoring gitignore, and staged copies are pruned after 7 days.
 - **Chips are re-sendable.** Click a chip to push its `@` reference again; ✕ removes it (and deletes the staged copy).
+- **The tray belongs to the open solution.** Close the solution or open another one and it resets itself - a chip is a path scoped to the workspace it was staged from, so carrying it across would push references the next session can't resolve. Same semantics as the Clear button: staged copies are deleted, files referenced in place are only unlisted.
 
 Direct-read images must be PNG/JPEG/GIF/WebP under 5 MB; bigger ones still attach, with a downscale note.
 

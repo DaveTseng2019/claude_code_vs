@@ -43,6 +43,21 @@ internal sealed class WorkspaceWatcher : IVsSolutionEvents, IVsSolutionEvents7, 
         var root = dir.TrimEnd('\\');
         _lockfile.UpdateWorkspaceFolders(new[] { root });
         Ui.BridgeStatus.SetWorkspace(root); // reflect in the dockable panel too
+        ResetWorkspaceScopedState();
+    }
+
+    /// <summary>
+    /// Drop the attach tray when the workspace changes. A chip is a path scoped to the workspace it was
+    /// staged from - workspace-relative mention, staging folder under that workspace's
+    /// <c>.claude\attachments</c> - so carrying it into the next solution would push references the new
+    /// session can't resolve. Same semantics as the panel's Clear button: staged copies are deleted,
+    /// in-place originals are only unlisted.
+    /// </summary>
+    private static void ResetWorkspaceScopedState()
+    {
+        if (Attachments.AttachmentService.Snapshot().Count == 0) return;
+        Attachments.AttachmentService.Clear();
+        Log.Info("attach: cleared the tray - the open solution changed.");
     }
 
     // ---- IVsSolutionEvents (classic solutions) ----
@@ -60,13 +75,19 @@ internal sealed class WorkspaceWatcher : IVsSolutionEvents, IVsSolutionEvents7, 
     public int OnBeforeUnloadProject(IVsHierarchy pRealHierarchy, IVsHierarchy pStubHierarchy) => VSConstants.S_OK;
     public int OnQueryCloseSolution(object pUnkReserved, ref int pfCancel) => VSConstants.S_OK;
     public int OnBeforeCloseSolution(object pUnkReserved) => VSConstants.S_OK;
-    public int OnAfterCloseSolution(object pUnkReserved) => VSConstants.S_OK;
+    public int OnAfterCloseSolution(object pUnkReserved)
+    {
+        // Closing is the other half of "the workspace changed" - opening the next solution comes through
+        // SetWorkspace, but File > Close Solution leaves VS with no workspace at all.
+        ResetWorkspaceScopedState();
+        return VSConstants.S_OK;
+    }
 
     // ---- IVsSolutionEvents7 (Open Folder mode) ----
     public void OnAfterOpenFolder(string folderPath) => SetWorkspace(folderPath);
     public void OnBeforeCloseFolder(string folderPath) { }
     public void OnQueryCloseFolder(string folderPath, ref int pfCancel) { }
-    public void OnAfterCloseFolder(string folderPath) { }
+    public void OnAfterCloseFolder(string folderPath) => ResetWorkspaceScopedState();
     public void OnAfterLoadAllDeferredProjects() { }
 
     public void Dispose()
