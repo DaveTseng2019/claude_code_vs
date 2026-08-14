@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.18.2 - 2026-08-14
+
+### Fixes
+
+- **Shift+tab auto mode is respected again** ([#38](https://github.com/firish/claude_code_vs/issues/38)). The CLI's permission-mode vocabulary grew: shift+tab's **auto mode** reports `auto`, and `dontAsk` joined the set, while the extension still recognized only `acceptEdits` and `bypassPermissions`. Anything else fell through to the diff, so a session the user had explicitly waved through kept stopping for review (the CLI's own `--permission-mode acceptEdits` launch path was unaffected, which is why the panel's run-wild checkbox always worked). All pre-approving modes are honored now, and the panel's run-wild checkbox reflects and locks to any of them.
+- **An unrecognized permission mode now says so.** The mode list is a deliberate allow-list: an unknown mode still opens the diff (the safe failure is the visible one), but logs a warning naming the mode and pointing at the issue tracker - so the next vocabulary change arrives as a bug report instead of silence.
+
+## 1.18.1 - 2026-08-13
+
+### Features
+
+- **A one-time "what's new" note, and the machinery behind it.** VS shows nothing when an extension updates, so headline features stay invisible to existing users. This release adds a deliberately rare notice surface: a single sticky InfoBar with a Release-notes link, shown **once per user, only on releases that explicitly arm it** - routine releases stay silent on purpose. This release arms it to point at the 1.18 right-click actions and the attach tray, the two most discovery-gated features in the extension.
+
+## 1.18.0 - 2026-08-13
+
+The context menu grows up ([#34](https://github.com/firish/claude_code_vs/pull/34), closing [#29](https://github.com/firish/claude_code_vs/issues/29) and [#31](https://github.com/firish/claude_code_vs/issues/31)), informed by a competitive scan of the official Claude Code VS Code extension, Copilot's VS 2026 context actions, and Cursor.
+
+### Features
+
+- **Four edit actions in the "Claude Code" flyout**, below a separator that splits *give Claude context* from *ask Claude to change the file*: **Fix Errors** (stages the selection/file with its *actual* Error List diagnostics and asks for the smallest correct fix, re-verified via `getDiagnostics`), **Generate Documentation** and **Add Comments** (resolve the **function at the caret** via Roslyn - no selection needed; accessors resolve to their property; VB works too - and mention its exact line span with style-matching instructions), and **Fix This Test** (appears in test files; hands Claude the `vs_run_test` → debug-at-the-throw / catch-flaky → fix → re-run loop addressing the real FQN). Every edit still arrives through the diff gate.
+- **`Alt+K` on Add to Chat** (text-editor scope) - the official VS Code extension's exact shortcut for inserting an `@`-mention of the current file and selection.
+- **Focus follows intent.** After every context action, a chip click, or the composer's Attach, the claude terminal (docked tab or external console) takes keyboard focus - Enter sends immediately. Raw paste/drop into the panel deliberately keeps focus in the panel for batch staging; `docs/QOL.md` documents the split ("Where focus goes, by design").
+- **Explain polish**: whole-file explain when nothing is selected, and self-describing staged filenames (`explain-Program.cs-L17-20.txt` instead of `paste-<timestamp>.txt`), so the composer reference says what it is.
+- **Actions launch a session when none is running** - staged items deliver on connect instead of the click dying into a feed warning.
+
+## 1.17.1 - 2026-08-12
+
+Same-day patch: Visual Studio 18.9 (released today) silently broke the docked terminal. Both changes contributed by [@DaveTseng2019](https://github.com/DaveTseng2019).
+
+### Fixes
+
+- **The docked "Claude Code" terminal works on VS 18.9** ([#32](https://github.com/firish/claude_code_vs/pull/32)). VS 18.9 removed the brokered-service descriptor the launcher acquired `ITerminalService` through, so every Launch silently fell back to the external console — the docked tab just disappeared. The launcher now tries the 18.9 route first (`SVsTerminalService`, the terminal's new classic-service home) and falls back to the brokered route on older VS including VS 2022; everything downstream is unchanged, and the external-console safety net still backstops both. Live-verified on 18.9.
+- **Docs: the paste-focus trap** ([#33](https://github.com/firish/claude_code_vs/pull/33)): if the `@` reference appears in the CLI's input box but Enter does nothing, keyboard focus is still in the panel (easy to hit with a floating panel overlapping the terminal) — click the terminal's input line. Also documented that pasting a screenshot *directly into the terminal* can never work (terminals pass text, not bitmaps — upstream [#26679](https://github.com/anthropics/claude-code/issues/26679)), and annotated that upstream #31208 (the MCP image-block token waste behind our paths-not-pixels rule) was bot-closed as stale, not fixed.
+
 ## 1.17.0 - 2026-08-12
 
 The first release built on community PRs — both headline changes started as contributions from [@DaveTseng2019](https://github.com/DaveTseng2019).

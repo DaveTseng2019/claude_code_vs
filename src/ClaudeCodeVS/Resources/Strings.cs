@@ -113,6 +113,8 @@ internal static class Strings
     internal static string DiffRightLabel => S(nameof(DiffRightLabel));
 
     // ---- Notifications ----
+    internal static string MarqueeNoticeText => S(nameof(MarqueeNoticeText));
+    internal static string ReleaseNotesLink => S(nameof(ReleaseNotesLink));
     internal static string NotifyTurnEnded => S(nameof(NotifyTurnEnded));
     internal static string NotifyNeedsInput => S(nameof(NotifyNeedsInput));
     internal static string TipRunWildOn => S(nameof(TipRunWildOn));

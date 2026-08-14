@@ -71,6 +71,7 @@ internal sealed class BridgeHost : IDisposable
         Ui.BridgeStatus.LaunchExternalAction = () => LaunchClaudeAsync(forceExternal: true);
         Ui.BridgeStatus.RelaunchAction = () => LaunchClaudeAsync(forceRelaunch: true);
         Ui.BridgeStatus.ShowOutputAction = () => pane.Activate(); // panel's "Output" button (UI thread)
+        Ui.BridgeStatus.FocusClaudeAction = () => FocusClaudeAsync(); // context actions: focus so Enter sends
         Log.Info("Claude Code bridge starting…");
 
         // 2) Lockfile lifecycle: reap stale dead-PID files, then claim a free port. (build-plan §3)
@@ -220,16 +221,22 @@ internal sealed class BridgeHost : IDisposable
         // CLI's own choice while it pre-approves edits.
         Ui.BridgeStatus.SetCliPermissionMode(string.IsNullOrEmpty(permissionMode) ? null : permissionMode);
 
-        // Honor the CLI's own permission mode (issue #17): when the user chose acceptEdits or
-        // bypassPermissions for the session, edits are pre-approved at the CLI level and our gate must
-        // not be stricter than that explicit choice. Older CLIs send no mode -> gate as always.
-        if (permissionMode is "acceptEdits" or "bypassPermissions")
+        // Honor the CLI's own permission mode (issue #17): when the user put the session in a mode that
+        // pre-approves edits - including shift+tab's "auto mode", which reports 'auto' (issue #38) - our
+        // gate must not be stricter than that explicit choice. Older CLIs send no mode -> gate as always.
+        if (Ui.BridgeStatus.IsPreApprovingMode(permissionMode))
         {
             Log.Info($"CLI permission mode '{permissionMode}' - allowing {filePath} without the diff");
             Ui.BridgeStatus.RecordDecision(accepted: true);
             ScheduleReload(filePath);
             return (true, null);
         }
+
+        // An unrecognized mode gates (fail-visible: the user can still accept), but says so loudly -
+        // the CLI's mode vocabulary has grown before and this is how we hear about the next one.
+        if (!Ui.BridgeStatus.IsKnownMode(permissionMode))
+            Log.Warn($"unrecognized CLI permission mode '{permissionMode}' - showing the diff. If this mode means "
+                   + "\"don't ask\", please report it: https://github.com/firish/claude_code_vs/issues");
 
         // Selective gate (marketplace feedback): the CLI's own working files - its ~/.claude
         // memory/config tree, temp-dir scratch files, and the workspace's .claude/ internals - skip the
@@ -685,7 +692,7 @@ internal sealed class BridgeHost : IDisposable
 
         try
         {
-            Process.Start(psi);
+            _externalCli = Process.Start(psi); // kept so the context actions can refocus its window
             Log.Info($"Launched Claude Code (port {_lockfile.Port}, cwd '{workspace ?? "(default)"}').");
         }
         catch (Exception e)
@@ -693,6 +700,29 @@ internal sealed class BridgeHost : IDisposable
             Log.Error($"Launch Claude Code failed: {e.Message}");
         }
     }
+
+    private Process? _externalCli;
+
+    /// <summary>
+    /// Bring the claude session's input to the foreground so Enter sends what a context action just
+    /// pushed into the composer (the #33 focus trap, solved instead of documented). Native docked tab
+    /// first (ShowAsync on the remembered guid), then the external console window we launched.
+    /// Best-effort - a /ide-connected terminal we didn't launch has no handle to focus.
+    /// </summary>
+    public async Task FocusClaudeAsync()
+    {
+        if (await Terminal.VsTerminalLauncher.TryFocusAsync(_cts.Token)) return;
+        try
+        {
+            var p = _externalCli;
+            if (p is { HasExited: false } && p.MainWindowHandle != IntPtr.Zero)
+                SetForegroundWindow(p.MainWindowHandle);
+        }
+        catch { /* focus is best-effort, never let it surface */ }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     public void Dispose()
     {

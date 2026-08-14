@@ -19,7 +19,8 @@ namespace ClaudeCodeVs.Tools;
 /// (the panel's "Allow screen capture" toggle, default OFF - what Claude can SEE of the desktop is a
 /// safety decision), feed-logged, and staged as a visible attachment chip. Results return the staged
 /// PNG's PATH for the model to Read - deliberately not MCP image blocks, which Claude Code counts as
-/// text at ~10-20x the tokens of a native image (upstream #31208).
+/// text at ~10-20x the tokens of a native image (upstream #31208 - CLOSED as stale by a bot, never
+/// fixed; verify a real fix shipped before returning image blocks).
 /// </summary>
 internal abstract class CaptureToolBase : IIdeTool
 {

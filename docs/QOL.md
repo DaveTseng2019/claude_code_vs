@@ -67,9 +67,30 @@ What makes the tray more than a paste button:
 
 Direct-read images must be PNG/JPEG/GIF/WebP under 5 MB; bigger ones still attach, with a downscale note.
 
+### Where focus goes (by design)
+
+Pushing an `@` reference and *sending* it are two different moments, and the extension moves keyboard focus based on which one you're in:
+
+- **"I'm done - send it" surfaces focus the Claude terminal for you**, so Enter sends immediately: every editor context-menu action (Explain, Add to Chat / Alt+K, Fix Errors, Generate Documentation, Add Comments, Fix This Test), a **chip click** (re-mention), and the composer's **Attach** button.
+- **Raw paste and drag-drop keep focus in the panel** - deliberately. Staging often happens in batches (three screenshots, a couple of log files), and yanking focus to the terminal after the first paste would fight the second. When the batch is done, click any chip - it re-mentions *and* hands you the terminal.
+
+Focus is best-effort: a session the extension launched (docked tab or external console) can always be focused; a terminal you started yourself and connected with `/ide` has no handle the extension knows, so focus stays put and you click the terminal as before.
+
+## The editor context menu
+
+Right-click in any editor: the **Claude Code** flyout puts the common asks one click away. It sits mid-menu, below the Go To navigation block - never claiming the top slot.
+
+![The Claude Code flyout in the editor context menu: Explain, Add to Chat (Alt+K), then Fix Errors, Generate Documentation, Add Comments below a separator](images/right_click_submenu.png)
+
+The separator is the design: **above it, actions that give Claude context** - *Explain* stages the selection (or, with nothing selected, the whole file) with an instruction header, and *Add to Chat* (`Alt+K`, the same shortcut as the official VS Code extension) `@`-mentions the file and line range in place. **Below it, actions that ask Claude to change the file** - *Fix Errors* bundles the selection (or file) with its actual Error List diagnostics and asks for the smallest correct fix, re-verified with `getDiagnostics`; *Generate Documentation* and *Add Comments* resolve the **function at your caret** through Roslyn (no selection needed - an accessor resolves to its property) and mention its exact line span, asking for style-matched doc comments, or explanatory comments only where the code isn't self-explanatory; *Fix This Test* (appears in test files) hands Claude the whole loop - run with `vs_run_test`, stop at the throw or catch the flaky iteration under the debugger, fix, re-run.
+
+Rules every entry follows: **insert-not-submit** (references land in the CLI composer; Enter is yours), each stages a **self-describing** `.txt` (`explain-Program.cs-L17-20.txt` - the reference says what it is), the action **focuses the claude terminal** so Enter sends immediately (see [Where focus goes](#where-focus-goes-by-design)), no session running means the action **launches one**, and every edit still arrives through the **diff gate**.
+
 ## Troubleshooting
 
 - **`claude` opened in a separate console window instead of the docked terminal:** the native path failed or timed out and fell back - the reason is logged in **Output > Claude Code** (look for "Native VS terminal"). Everything still works; the fallback is by design.
 - **The Claude Code terminal tab turned into Developer PowerShell after restarting VS:** expected - see [Known quirks](#known-quirks). Close it and Launch again.
 - **An attachment chip didn't show up in the CLI's input box:** the CLI drops the reference if it arrived mid-turn or while its agents view was focused. Click the chip to send it again; chips staged before Claude connects send themselves on connect.
+- **The `@` reference appeared in the CLI's input box, but Enter doesn't send it:** you're in one of the two cases that don't auto-focus (see [Where focus goes](#where-focus-goes-by-design)): a raw paste/drop into the panel (deliberate - batch staging), or a `/ide`-connected terminal the extension didn't launch (no handle to focus). Click any chip to re-mention *and* get the terminal focused, or click the terminal's input line. Corollary: an `@` reference in the input box always came from the panel - pasting an image straight into the terminal does nothing at all (see below).
+- **Pasting a screenshot into the terminal does nothing:** expected, and not something this extension can fix - Windows terminals hand the CLI a character stream, never the clipboard's bitmap ([upstream #26679](https://github.com/anthropics/claude-code/issues/26679)). Shift+Insert and right-click paste are terminal-level and text-only, so they don't help either. Paste into the panel instead.
 - **No notifications:** check the **Notify** toggle in the panel, and note the taskbar flash only happens when VS is *not* the foreground window.

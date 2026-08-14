@@ -402,7 +402,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         try
         {
             // Run-wild reflects the CLI session's own mode (issue #17 follow-up): while the CLI
-            // pre-approves edits (acceptEdits / bypassPermissions, e.g. shift+tab auto-accept in the
+            // pre-approves edits (acceptEdits / auto / dontAsk / bypassPermissions - e.g. shift+tab in the
             // terminal), the checkbox shows checked and DISABLED - unchecking it could not re-gate
             // edits the user already approved at the CLI level, so the UI must not offer it. When the
             // session mode is default (or no session), the checkbox is the user's own bridge-side
@@ -612,12 +612,28 @@ internal sealed class ClaudeToolWindowControl : UserControl
         {
             var text = ComposeDialog.Prompt(initialText); // modal, UI thread; null = cancelled/empty
             if (text != null)
-                _ = Task.Run(() => Attachments.AttachmentService.StageTextAsync(text));
+                _ = Task.Run(async () =>
+                {
+                    await Attachments.AttachmentService.StageTextAsync(text);
+                    FocusClaude(); // Attach = "I'm done, send it" - put Enter where it works
+                });
         }
         catch (Exception ex)
         {
             Log.Warn($"attach: composer failed: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Focus the claude input, so Enter sends the reference just pushed. Called ONLY where the user's
+    /// intent to send is unambiguous: a chip click (re-mention) and the composer's Attach. Raw
+    /// paste/drop deliberately keeps focus in the panel - people stage several files in a row, and
+    /// yanking focus after the first would fight them (see docs/QOL.md "Where focus goes").
+    /// </summary>
+    private static void FocusClaude()
+    {
+        var focus = BridgeStatus.FocusClaudeAction;
+        if (focus != null) _ = focus();
     }
 
     private static byte[] EncodePng(BitmapSource bmp)
@@ -665,7 +681,11 @@ internal sealed class ClaudeToolWindowControl : UserControl
                     : Strings.ChipStagedRetry),
             };
             name.SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey);
-            name.MouseLeftButtonUp += (s, e) => _ = Task.Run(() => Attachments.AttachmentService.ResendAsync(it));
+            name.MouseLeftButtonUp += (s, e) => _ = Task.Run(async () =>
+            {
+                await Attachments.AttachmentService.ResendAsync(it);
+                FocusClaude(); // chip click = explicit re-send intent
+            });
 
             var close = new TextBlock
             {

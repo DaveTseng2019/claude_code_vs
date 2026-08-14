@@ -108,13 +108,21 @@ internal static class AttachmentService
     /// "[Pasted text +N lines]" chip is display collapse, not loss - but a file is visible, reusable,
     /// and grep-able for the truly big cases.)
     /// </summary>
-    public static async Task StageTextAsync(string text)
+    public static async Task StageTextAsync(string text) => await StageTextAsync(text, null);
+
+    /// <summary>
+    /// Same, with a caller-chosen filename stem: the context-menu actions pass self-describing names
+    /// ("explain-Program.cs-L17-20") so the composer's @ reference and the tray chip say what they
+    /// are instead of an anonymous "paste-&lt;timestamp&gt;" (user feedback on the #27 Explain flow).
+    /// </summary>
+    public static async Task StageTextAsync(string text, string? baseName)
     {
         try
         {
             if (string.IsNullOrWhiteSpace(text)) return;
+            var stem = SanitizeFileStem(baseName) ?? $"paste-{DateTime.Now:yyyyMMdd-HHmmss}";
             var dir = EnsureStagingDir();
-            var dest = UniquePath(dir, $"paste-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
+            var dest = UniquePath(dir, $"{stem}.txt");
             File.WriteAllText(dest, text); // UTF-8, no BOM
             await AddAndSendAsync(dest, isImage: false, wasCopied: true, Math.Max(1, (long)text.Length / 4), needsTool: false);
         }
@@ -362,6 +370,16 @@ internal static class AttachmentService
     /// <summary>" (≈1.4k tok)" for log lines, empty when there's no estimate.</summary>
     private static string TokSuffix(long? est)
         => est is long t ? $" (≈{(t >= 1000 ? (t / 1000.0).ToString("0.0") + "k" : t.ToString())} tok)" : "";
+
+    /// <summary>Filename-safe stem: invalid chars become '-'; null/empty stays null (caller defaults).</summary>
+    private static string? SanitizeFileStem(string? stem)
+    {
+        if (string.IsNullOrWhiteSpace(stem)) return null;
+        var bad = Path.GetInvalidFileNameChars();
+        var chars = stem!.Trim().Select(c => bad.Contains(c) ? '-' : c).ToArray();
+        var s = new string(chars);
+        return s.Length > 80 ? s.Substring(0, 80) : s; // keep the composer reference readable
+    }
 
     /// <summary>Workspace-relative forward-slash form, or null when the path is outside the workspace.</summary>
     internal static string? ToWorkspaceRelative(string fullPath)

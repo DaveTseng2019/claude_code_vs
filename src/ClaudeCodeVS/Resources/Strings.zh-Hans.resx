@@ -222,6 +222,12 @@
   </data>
 
   <!-- Notifications -->
+  <data name="MarqueeNoticeText" xml:space="preserve">
+    <value>新功能：在任意代码上点击右键即可使用“解释”“修复错误”“生成文档”和“添加注释”，按 Alt+K 可将选中内容添加到对话。面板的附件栏还能接收终端无法粘贴的截图。</value>
+  </data>
+  <data name="ReleaseNotesLink" xml:space="preserve">
+    <value>版本说明</value>
+  </data>
   <data name="NotifyTurnEnded" xml:space="preserve">
     <value>Claude 已完成回复。</value>
   </data>
