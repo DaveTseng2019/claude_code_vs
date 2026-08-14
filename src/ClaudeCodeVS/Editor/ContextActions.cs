@@ -23,8 +23,17 @@ internal static class ContextActions
 
     public static async Task AddToChatAsync()
     {
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+        if (SelectionService.Current.FilePath is null)
+        {
+            Log.Warn("Add to Chat: no active file.");
+            return;
+        }
+        // Launches like every other action in the flyout (issue #36): before, a cold-start Add to Chat
+        // was the one entry that did nothing at all - no session, no staged item, just a warning.
+        bool launched = EnsureSessionLaunching("Add to Chat");
         await SelectionService.MentionCurrentAsync();
-        FocusClaude(launchedJustNow: false);
+        FocusClaude(launched);
     }
 
     // ---- Add to Chat (Solution Explorer): the selected files and folders --------------------------

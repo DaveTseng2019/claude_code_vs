@@ -145,15 +145,34 @@ internal static class BridgeStatus
 
     /// <summary>
     /// The CLI session's own permission mode, as observed on the most recent edit-permission request
-    /// ("default" | "acceptEdits" | "plan" | "bypassPermissions"; null = unknown / no session yet).
+    /// (see <see cref="IsPreApprovingMode"/> for the vocabulary; null = unknown / no session yet).
     /// Drives the run-wild checkbox's reflected state: while the CLI pre-approves edits, the checkbox
     /// shows checked and DISABLED - we cannot re-gate what the user already approved at the CLI level,
     /// so the UI must not pretend otherwise. Cleared on disconnect.
     /// </summary>
     public static string? CliPermissionMode { get; private set; }
 
-    /// <summary>True while the CLI session itself pre-approves edits (acceptEdits / bypassPermissions).</summary>
-    public static bool CliEditsPreApproved => CliPermissionMode is "acceptEdits" or "bypassPermissions";
+    /// <summary>
+    /// Does this CLI permission mode pre-approve file edits? The CLI's vocabulary GREW after our first
+    /// pass at issue #17 - shift+tab's "auto mode" reports <c>auto</c>, and <c>dontAsk</c> joined it -
+    /// so matching only acceptEdits/bypassPermissions silently re-gated sessions the user had already
+    /// waved through (issue #38, live on CLI 2.1.229).
+    ///
+    /// Deliberately an ALLOW-LIST, not "anything that isn't default": an unrecognized mode gates (the
+    /// user can still accept in the diff, so the safe failure is the visible one) and logs a warning,
+    /// so the next vocabulary change surfaces as a report instead of a silent auto-allow.
+    /// Current values: default (shown as "Manual" in the CLI UI) and plan gate; acceptEdits, auto,
+    /// dontAsk and bypassPermissions pre-approve.
+    /// </summary>
+    public static bool IsPreApprovingMode(string? mode) =>
+        mode is "acceptEdits" or "auto" or "dontAsk" or "bypassPermissions";
+
+    /// <summary>True when a mode is one we recognize at all (unknown ones are logged once by the gate).</summary>
+    public static bool IsKnownMode(string? mode) =>
+        string.IsNullOrEmpty(mode) || mode is "default" or "plan" || IsPreApprovingMode(mode);
+
+    /// <summary>True while the CLI session itself pre-approves edits.</summary>
+    public static bool CliEditsPreApproved => IsPreApprovingMode(CliPermissionMode);
 
     public static void SetCliPermissionMode(string? mode)
     {
@@ -183,6 +202,10 @@ internal static class BridgeStatus
     /// <summary>Set by BridgeHost: start the CLI in a standalone external console (skips the docked native
     /// terminal - for users who want claude in its own window, or one that survives closing VS).</summary>
     public static Func<Task>? LaunchExternalAction { get; set; }
+
+    /// <summary>Set by BridgeHost so the "hooks & tools didn't load" banner can start a correctly-pinned
+    /// session even though one is already connected - bypasses LaunchAction's already-connected guard.</summary>
+    public static Func<Task>? RelaunchAction { get; set; }
 
     /// <summary>Set by BridgeHost so the panel can bring the verbose Output pane forward (UI thread).</summary>
     public static Action? ShowOutputAction { get; set; }

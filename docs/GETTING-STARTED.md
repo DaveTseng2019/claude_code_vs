@@ -62,7 +62,7 @@ Every edit Claude proposes opens in Visual Studio's own diff viewer, and approvi
 
 One deliberate exception (1.14.4): writes to Claude's **own working files** - its `~/.claude` memory and config, temp-dir scratch files, and the workspace's `.claude/` internals - skip the gate entirely (each one is logged in the activity feed), so a session never stalls on reviewing its own scaffolding. Project code, both new files and edits to existing ones, always gets the diff.
 
-And the gate defers to **your CLI-level choice** (1.14.5): if you run the session with `acceptEdits` or `bypassPermissions` (auto-accept / "dangerously skip permissions"), edits are pre-approved at the CLI and the diff does not open - each allow is logged in the feed. In the CLI's default mode, the diff is the gate exactly as described above.
+And the gate defers to **your CLI-level choice**: put the session in any mode that pre-approves edits and the diff stays out of the way - each allow is logged in the feed instead. That covers **shift+tab's auto mode** (press it in the Claude terminal at any time, mid-session included), `acceptEdits`, `dontAsk`, and `--dangerously-skip-permissions`. In the CLI's default mode (shown as **Manual** in newer CLIs) the diff is the gate exactly as described above.
 
 You have three choices on the InfoBar:
 

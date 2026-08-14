@@ -51,8 +51,8 @@ public sealed class IdeWebSocketServer
     /// single-gate works - the hook gates the edit through our diff.
     /// </summary>
     /// <remarks>The third string is the CLI's own permission mode from the hook payload
-    /// ("default" | "acceptEdits" | "plan" | "bypassPermissions"; null on older CLIs) - the handler
-    /// honors acceptEdits/bypassPermissions by allowing without a diff (issue #17).</remarks>
+    /// ("default" | "plan" | "acceptEdits" | "auto" | "dontAsk" | "bypassPermissions"; null on older
+    /// CLIs) - the handler allows without a diff for the pre-approving ones (issues #17, #38).</remarks>
     public Func<string, string, string?, CancellationToken, Task<(bool allow, string? reason)>>? PermissionHandler { get; set; }
 
     /// <summary>
