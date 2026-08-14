@@ -75,7 +75,7 @@ try {
     }
     if (-not $port) { Emit 'allow' 'no Visual Studio bridge lockfile found' }
 
-    # Pass the CLI's own permission mode through: when the user chose acceptEdits / bypassPermissions
+    # Pass the CLI's own permission mode through: when the user chose a pre-approving mode
     # for the session, the bridge allows without opening the diff (our gate must never be stricter
     # than the user's explicit CLI-level choice). Absent on older CLIs -> bridge gates as always.
     # cwd rides along so the bridge can refuse to gate a session that belongs to a DIFFERENT workspace

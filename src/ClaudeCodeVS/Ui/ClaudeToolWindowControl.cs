@@ -402,7 +402,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         try
         {
             // Run-wild reflects the CLI session's own mode (issue #17 follow-up): while the CLI
-            // pre-approves edits (acceptEdits / bypassPermissions, e.g. shift+tab auto-accept in the
+            // pre-approves edits (acceptEdits / auto / dontAsk / bypassPermissions - e.g. shift+tab in the
             // terminal), the checkbox shows checked and DISABLED - unchecking it could not re-gate
             // edits the user already approved at the CLI level, so the UI must not offer it. When the
             // session mode is default (or no session), the checkbox is the user's own bridge-side

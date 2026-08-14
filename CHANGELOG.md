@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.18.2 - 2026-08-14
+
+### Fixes
+
+- **Shift+tab auto mode is respected again** ([#38](https://github.com/firish/claude_code_vs/issues/38)). The CLI's permission-mode vocabulary grew: shift+tab's **auto mode** reports `auto`, and `dontAsk` joined the set, while the extension still recognized only `acceptEdits` and `bypassPermissions`. Anything else fell through to the diff, so a session the user had explicitly waved through kept stopping for review (the CLI's own `--permission-mode acceptEdits` launch path was unaffected, which is why the panel's run-wild checkbox always worked). All pre-approving modes are honored now, and the panel's run-wild checkbox reflects and locks to any of them.
+- **An unrecognized permission mode now says so.** The mode list is a deliberate allow-list: an unknown mode still opens the diff (the safe failure is the visible one), but logs a warning naming the mode and pointing at the issue tracker - so the next vocabulary change arrives as a bug report instead of silence.
+
 ## 1.18.1 - 2026-08-13
 
 ### Features

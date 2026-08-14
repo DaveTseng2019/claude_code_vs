@@ -211,16 +211,22 @@ internal sealed class BridgeHost : IDisposable
         // CLI's own choice while it pre-approves edits.
         Ui.BridgeStatus.SetCliPermissionMode(string.IsNullOrEmpty(permissionMode) ? null : permissionMode);
 
-        // Honor the CLI's own permission mode (issue #17): when the user chose acceptEdits or
-        // bypassPermissions for the session, edits are pre-approved at the CLI level and our gate must
-        // not be stricter than that explicit choice. Older CLIs send no mode -> gate as always.
-        if (permissionMode is "acceptEdits" or "bypassPermissions")
+        // Honor the CLI's own permission mode (issue #17): when the user put the session in a mode that
+        // pre-approves edits - including shift+tab's "auto mode", which reports 'auto' (issue #38) - our
+        // gate must not be stricter than that explicit choice. Older CLIs send no mode -> gate as always.
+        if (Ui.BridgeStatus.IsPreApprovingMode(permissionMode))
         {
             Log.Info($"CLI permission mode '{permissionMode}' - allowing {filePath} without the diff");
             Ui.BridgeStatus.RecordDecision(accepted: true);
             ScheduleReload(filePath);
             return (true, null);
         }
+
+        // An unrecognized mode gates (fail-visible: the user can still accept), but says so loudly -
+        // the CLI's mode vocabulary has grown before and this is how we hear about the next one.
+        if (!Ui.BridgeStatus.IsKnownMode(permissionMode))
+            Log.Warn($"unrecognized CLI permission mode '{permissionMode}' - showing the diff. If this mode means "
+                   + "\"don't ask\", please report it: https://github.com/firish/claude_code_vs/issues");
 
         // Selective gate (marketplace feedback): the CLI's own working files - its ~/.claude
         // memory/config tree, temp-dir scratch files, and the workspace's .claude/ internals - skip the
