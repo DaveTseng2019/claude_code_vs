@@ -30,6 +30,13 @@
       <Group guid="guidClaudeCmdSet" id="ClaudeCtxTopGroup" priority="0x0200">
         <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
       </Group>
+      <!-- Solution Explorer. One group, placed into every node menu the action makes sense on (the
+           extra placements are in CommandPlacements below): a file, a folder, and a multi-selection
+           spanning projects. Deliberately NOT on project/solution nodes - "add this whole project"
+           is a different ask. One entry, not a flyout: a single command doesn't earn a submenu. -->
+      <Group guid="guidClaudeCmdSet" id="ClaudeSlnCtxGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_ITEMNODE" />
+      </Group>
     </Groups>
 
     <!-- Editor right-click submenu: "Claude Code" -> Explain / Add to Chat. Named for the brand,
@@ -117,8 +124,30 @@
           <ButtonText>Fix This Test</ButtonText>
         </Strings>
       </Button>
+      <!-- Solution Explorer's entry. -->
+      <Button guid="guidClaudeCmdSet" id="AddItemsToChatId" priority="0x0100" type="Button">
+        <Parent guid="guidClaudeCmdSet" id="ClaudeSlnCtxGroup" />
+        <Icon guid="ImageCatalogGuid" id="Comment" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Add to Chat</ButtonText>
+        </Strings>
+      </Button>
     </Buttons>
   </Commands>
+
+  <!-- The Solution Explorer group's other homes: folder nodes, and multi-selections of items across
+       projects (VS switches menu ID by what's selected, so one placement per shape). -->
+  <CommandPlacements>
+    <!-- Lower priority in the folder menu on purpose: at 0x0600 it sorted below Properties, i.e. dead
+         last, while the file menu puts it mid-list. 0x0300 lines the two menus up. -->
+    <CommandPlacement guid="guidClaudeCmdSet" id="ClaudeSlnCtxGroup" priority="0x0300">
+      <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_FOLDERNODE" />
+    </CommandPlacement>
+    <CommandPlacement guid="guidClaudeCmdSet" id="ClaudeSlnCtxGroup" priority="0x0600">
+      <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_XPROJ_MULTIITEM" />
+    </CommandPlacement>
+  </CommandPlacements>
 
   <!-- Alt+K on Add to Chat, text-editor scope: the same muscle memory as the official VS Code
        extension's "Insert @-Mention Reference" (Alt+K there too). -->
@@ -134,6 +163,7 @@
       <IDSymbol name="ClaudeCtxMenuGroup" value="0x1022" />
       <IDSymbol name="ClaudeCtxTopGroup" value="0x1023" />
       <IDSymbol name="ClaudeCtxEditGroup" value="0x1024" />
+      <IDSymbol name="ClaudeSlnCtxGroup" value="0x1025" />
       <IDSymbol name="LaunchClaudeId" value="0x0100" />
       <IDSymbol name="ShowPanelId" value="0x0101" />
       <IDSymbol name="ExplainId" value="0x0102" />
@@ -142,6 +172,7 @@
       <IDSymbol name="GenerateDocsId" value="0x0105" />
       <IDSymbol name="AddCommentsId" value="0x0106" />
       <IDSymbol name="FixTestId" value="0x0107" />
+      <IDSymbol name="AddItemsToChatId" value="0x0108" />
     </GuidSymbol>
     <!-- GUID_TextEditorFactory: scopes the Alt+K binding to the text editor. -->
     <GuidSymbol name="guidTextEditor" value="{8B382828-6202-11D1-8870-0000F87579D2}" />

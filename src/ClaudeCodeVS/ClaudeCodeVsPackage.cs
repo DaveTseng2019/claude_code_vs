@@ -65,6 +65,8 @@ public sealed class ClaudeCodeVsPackage : AsyncPackage
                 new CommandID(PackageGuids.CommandSet, PackageIds.GenerateDocs)));
             mcs.AddCommand(new MenuCommand(OnAddComments,
                 new CommandID(PackageGuids.CommandSet, PackageIds.AddComments)));
+            mcs.AddCommand(new MenuCommand(OnAddItemsToChat,
+                new CommandID(PackageGuids.CommandSet, PackageIds.AddItemsToChat)));
 
             // Fix This Test hides outside test-looking files. The visibility check must be instant
             // (it runs on every right-click), so it's a filename heuristic - "test" in the name -
@@ -153,6 +155,10 @@ public sealed class ClaudeCodeVsPackage : AsyncPackage
     private void OnAddComments(object sender, EventArgs e)
         => JoinableTaskFactory.RunAsync(Editor.ContextActions.AddCommentsAsync).FileAndForget("claudecodevs/addComments");
 
+    // Solution Explorer right-click: @-mention the selected files/folders (whole-file, multi-select).
+    private void OnAddItemsToChat(object sender, EventArgs e)
+        => JoinableTaskFactory.RunAsync(Editor.ContextActions.AddSelectionToChatAsync).FileAndForget("claudecodevs/addItemsToChat");
+
     private void OnFixTest(object sender, EventArgs e)
         => JoinableTaskFactory.RunAsync(Editor.ContextActions.FixTestAsync).FileAndForget("claudecodevs/fixTest");
 
@@ -182,4 +188,5 @@ internal static class PackageIds
     public const int GenerateDocs = 0x0105;
     public const int AddComments = 0x0106;
     public const int FixTest = 0x0107;
+    public const int AddItemsToChat = 0x0108;
 }

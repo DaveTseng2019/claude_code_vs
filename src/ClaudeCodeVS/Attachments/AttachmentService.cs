@@ -77,7 +77,7 @@ internal static class AttachmentService
         _ = Task.Run(() => PruneStale());
     }
 
-    /// <summary>Stage dropped/pasted file paths and @-mention each. Any thread; IO stays off the UI thread.</summary>
+    /// <summary>Stage dropped/pasted files or folders and @-mention each. Any thread; IO stays off the UI thread.</summary>
     public static async Task StageFilesAsync(IReadOnlyList<string> paths)
     {
         foreach (var path in paths)
@@ -161,37 +161,11 @@ internal static class AttachmentService
     {
         try
         {
-            var mentionPath = ToWorkspaceRelative(fullPath) ?? fullPath;
-
-            // Repeat actions on the same span re-send the existing chip instead of stacking duplicates.
-            AttachmentItem? existing;
-            lock (Gate)
-                existing = Items.FirstOrDefault(i =>
-                    !i.WasCopied
-                    && string.Equals(i.MentionPath, mentionPath, StringComparison.OrdinalIgnoreCase)
-                    && i.LineStart == lineStart && i.LineEnd == lineEnd);
-            if (existing != null)
-            {
-                await SendAsync(existing, announce: true);
-                return existing.Sent;
-            }
-
             bool isImage = ImageExt.Contains(Path.GetExtension(fullPath));
-            var item = new AttachmentItem
-            {
-                FullPath = fullPath,
-                MentionPath = mentionPath,
-                FileName = Path.GetFileName(fullPath),
-                IsImage = isImage,
-                WasCopied = false,        // an existing file: never ours to delete
-                LineStart = lineStart,
-                LineEnd = lineEnd,
-                // A whole-file reference gets the usual estimate; a range would only mislead, since we
-                // are pointing at part of the file rather than handing over all of it.
-                EstTokens = lineStart is null ? EstimateFileTokens(fullPath, isImage) : null,
-            };
-            AddItem(item);
-            await SendAsync(item, announce: true);
+            // A whole-file reference gets the usual estimate; a range would only mislead, since we are
+            // pointing at part of the file rather than handing over all of it.
+            long? est = lineStart is null ? EstimateFileTokens(fullPath, isImage) : null;
+            var item = await AddAndSendAsync(fullPath, isImage, wasCopied: false, est, needsTool: false, lineStart, lineEnd);
             return item.Sent;
         }
         catch (Exception e)
@@ -287,9 +261,18 @@ internal static class AttachmentService
 
     private static async Task StageOneFileAsync(string path)
     {
+        // A folder is mention-only: folder @-mentions are first-class in the CLI (it walks the tree
+        // itself), so there's nothing to read, copy or estimate here - the reference IS the payload.
+        if (Directory.Exists(path))
+        {
+            await AddAndSendAsync(Path.GetFullPath(path).TrimEnd('\\', '/'),
+                isImage: false, wasCopied: false, estTokens: null, needsTool: false);
+            return;
+        }
+
         if (!File.Exists(path))
         {
-            Log.Warn($"attach: '{path}' doesn't exist (folders aren't supported - drop files).");
+            Log.Warn($"attach: '{path}' doesn't exist.");
             return;
         }
 
@@ -366,20 +349,45 @@ internal static class AttachmentService
         }
     }
 
-    private static async Task AddAndSendAsync(string fullPath, bool isImage, bool wasCopied, long? estTokens, bool needsTool)
+    private static async Task<AttachmentItem> AddAndSendAsync(string fullPath, bool isImage, bool wasCopied,
+                                                              long? estTokens, bool needsTool,
+                                                              int? lineStart = null, int? lineEnd = null)
     {
+        var mentionPath = ToWorkspaceRelative(fullPath) ?? fullPath; // absolute also works (spike-verified)
+
+        // REFERENCES dedupe, copies don't: pointing at the same file+range twice (Solution Explorer's
+        // Add to Chat on a file already added, or a repeated editor action) should re-send that chip
+        // rather than stack a second one. Staged copies are always distinct files, so they never match.
+        if (!wasCopied)
+        {
+            AttachmentItem? existing;
+            lock (Gate)
+                existing = Items.FirstOrDefault(i =>
+                    !i.WasCopied
+                    && string.Equals(i.MentionPath, mentionPath, StringComparison.OrdinalIgnoreCase)
+                    && i.LineStart == lineStart && i.LineEnd == lineEnd);
+            if (existing != null)
+            {
+                await SendAsync(existing, announce: true);
+                return existing;
+            }
+        }
+
         var item = new AttachmentItem
         {
             FullPath = fullPath,
-            MentionPath = ToWorkspaceRelative(fullPath) ?? fullPath, // absolute also works (spike-verified)
+            MentionPath = mentionPath,
             FileName = Path.GetFileName(fullPath),
             IsImage = isImage,
             WasCopied = wasCopied,
             EstTokens = estTokens,
             NeedsTool = needsTool,
+            LineStart = lineStart,
+            LineEnd = lineEnd,
         };
         AddItem(item); // bounded, and never trims a still-pending item ahead of a sent one
         await SendAsync(item, announce: true);
+        return item;
     }
 
     private static async Task SendAsync(AttachmentItem item, bool announce)

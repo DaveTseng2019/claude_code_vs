@@ -88,6 +88,14 @@ Rules every entry follows: **insert-not-submit** (references land in the CLI com
 
 The code an action points at shows up in the attach tray too, as a chip like `📄 Program.cs #L18-24`. That is the retry path: if the CLI drops a reference because it arrived mid-turn, click the chip to send it again. It also means a cold start loses nothing - fire an action with no session running and both the note and the reference queue up, then deliver in order the moment the CLI connects. Removing one of those chips never touches your source file; only staged copies (screenshots, pasted text) are deleted with `✕`.
 
+## Add to Chat in Solution Explorer
+
+The editor flyout points Claude at the file you're *in*. **Add to Chat** on the Solution Explorer right-click menu points it at everything else: select one or more files, right-click, and each is `@`-mentioned whole-file - no line ranges, no typing paths.
+
+- **Folders work too**, and they aren't expanded here: the folder itself is mentioned and the CLI walks the tree, so `@Rules` costs one reference instead of one per file.
+- **Multi-select is the point** - "look at these three files" is select + right-click, and a selection spanning projects works the same way. Project and solution nodes deliberately have no entry; "read this whole project" is a different ask.
+- **The references arrive as chips** in the panel's attach tray, so each one keeps its token estimate and click-to-re-mention, and a selection made before Claude connects delivers itself on connect. Twenty items per invocation - the tray's chip bound.
+
 ## Troubleshooting
 
 - **Clicking Launch again does nothing:** by design - a session is already connected (or one is still starting), and the activity feed says which. One docked session per VS window is the model the panel is built around: its status, stats and toggles describe *the* session. Want a second one anyway? **External console** always launches, and `/ide` from any terminal connects it.
