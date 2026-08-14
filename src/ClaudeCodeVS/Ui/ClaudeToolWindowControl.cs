@@ -672,11 +672,11 @@ internal sealed class ClaudeToolWindowControl : UserControl
             var toolNote = it.NeedsTool ? "\n" + Strings.ChipNeedsTool : "";
             var name = new TextBlock
             {
-                Text = (it.IsImage ? "🖼 " : it.NeedsTool ? "🧰 " : "📄 ") + it.FileName + (it.Sent ? "" : "  ⏳"),
+                Text = (it.IsImage ? "🖼 " : it.NeedsTool ? "🧰 " : "📄 ") + it.FileName + it.RangeShort + (it.Sent ? "" : "  ⏳"),
                 FontSize = 11.5,
                 VerticalAlignment = VerticalAlignment.Center,
                 Cursor = Cursors.Hand,
-                ToolTip = it.MentionPath + est + toolNote + "\n" + (it.Sent
+                ToolTip = it.MentionPath + it.RangeLabel + est + toolNote + "\n" + (it.Sent
                     ? Strings.ChipClickRemention
                     : Strings.ChipStagedRetry),
             };

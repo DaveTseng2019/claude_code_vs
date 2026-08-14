@@ -86,6 +86,8 @@ The separator is the design: **above it, actions that give Claude context** - *E
 
 Rules every entry follows: **insert-not-submit** (references land in the CLI composer; Enter is yours), each stages a **self-describing** `.txt` (`explain-Program.cs-L17-20.txt` - the reference says what it is), the action **focuses the claude terminal** so Enter sends immediately (see [Where focus goes](#where-focus-goes-by-design)), no session running means the action **launches one**, and every edit still arrives through the **diff gate**.
 
+The code an action points at shows up in the attach tray too, as a chip like `📄 Program.cs #L18-24`. That is the retry path: if the CLI drops a reference because it arrived mid-turn, click the chip to send it again. It also means a cold start loses nothing - fire an action with no session running and both the note and the reference queue up, then deliver in order the moment the CLI connects. Removing one of those chips never touches your source file; only staged copies (screenshots, pasted text) are deleted with `✕`.
+
 ## Troubleshooting
 
 - **Clicking Launch again does nothing:** by design - a session is already connected (or one is still starting), and the activity feed says which. One docked session per VS window is the model the panel is built around: its status, stats and toggles describe *the* session. Want a second one anyway? **External console** always launches, and `/ide` from any terminal connects it.

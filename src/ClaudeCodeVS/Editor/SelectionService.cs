@@ -73,33 +73,18 @@ internal static class SelectionService
     /// </summary>
     public static async Task<bool> MentionAsync(string filePath, int? startLine, int? endLineInclusive, string action)
     {
-        var server = _server;
-        if (server is null || !server.HasConnections)
+        // Routed through the attachment tray's queue rather than pushed straight at the socket: a
+        // mention sent while no CLI is attached used to be lost outright, which on a cold start left
+        // the staged instruction note talking about code that was never mentioned (issue #36). The
+        // tray flushes pending items in insertion order when the CLI connects, and gives the chip's
+        // click-to-re-mention as the retry path. ONE mention path for every caller.
+        bool sent = await Attachments.AttachmentService.MentionFileAsync(filePath, startLine, endLineInclusive);
+        if (sent)
         {
-            Log.Warn($"{action}: Claude isn't connected.");
-            return false;
-        }
-
-        var mentionPath = Attachments.AttachmentService.ToWorkspaceRelative(filePath) ?? filePath;
-        var @params = new JObject { ["filePath"] = mentionPath };
-        if (startLine is int s && endLineInclusive is int e2)
-        {
-            @params["lineStart"] = s;
-            @params["lineEnd"] = e2;
-        }
-
-        try
-        {
-            await server.BroadcastNotificationAsync("at_mentioned", @params, CancellationToken.None);
-            var range = startLine is int s2 && endLineInclusive is int e3 ? $" (lines {s2 + 1}-{e3 + 1})" : "";
+            var range = startLine is int s && endLineInclusive is int e ? $" (lines {s + 1}-{e + 1})" : "";
             Log.Info($"{action}: mentioned '{System.IO.Path.GetFileName(filePath)}'{range}.");
-            return true;
         }
-        catch (Exception e)
-        {
-            Log.Warn($"{action} failed: {e.Message}");
-            return false;
-        }
+        return sent;
     }
 
     /// <summary>Record a fresh selection from a focused view and (debounced) push selection_changed.</summary>
