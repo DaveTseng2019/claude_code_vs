@@ -41,9 +41,13 @@ internal sealed class WorkspaceWatcher : IVsSolutionEvents, IVsSolutionEvents7, 
     private void SetWorkspace(string dir)
     {
         var root = dir.TrimEnd('\\');
+        // Only a REAL change resets: this path also runs at extension load and on any repeat
+        // open-solution event, and silently binning a tray of staged screenshots because VS re-raised
+        // an event for the workspace we are already on would be its own bug.
+        bool changed = !string.Equals(Ui.BridgeStatus.Workspace, root, System.StringComparison.OrdinalIgnoreCase);
         _lockfile.UpdateWorkspaceFolders(new[] { root });
         Ui.BridgeStatus.SetWorkspace(root); // reflect in the dockable panel too
-        ResetWorkspaceScopedState();
+        if (changed) ResetWorkspaceScopedState();
     }
 
     /// <summary>

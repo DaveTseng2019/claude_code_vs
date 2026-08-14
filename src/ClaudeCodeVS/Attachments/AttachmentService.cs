@@ -21,6 +21,14 @@ internal sealed class AttachmentItem
     public bool Sent;               // at_mentioned delivered at least once while the CLI was connected
     public long? EstTokens;         // what reading this will roughly cost: (w*h)/750 for images, bytes/4 for text; null = unknown (PDF, undecodable)
     public bool NeedsTool;          // not a format Read parses (xlsx/mp4/zip/...) - Claude gets the path and reaches for a script/tool
+    public int? LineStart;          // 0-based INCLUSIVE range for a partial mention (@file#L18-24); null = whole file
+    public int? LineEnd;
+
+    /// <summary>" (lines 18-24)" for a ranged mention, empty for a whole-file one. 1-based for humans.</summary>
+    public string RangeLabel => LineStart is int s && LineEnd is int e ? $" (lines {s + 1}-{e + 1})" : "";
+
+    /// <summary>The compact chip form of the same thing: " #L18-24".</summary>
+    public string RangeShort => LineStart is int s && LineEnd is int e ? $" #L{s + 1}-{e + 1}" : "";
 }
 
 /// <summary>
@@ -69,7 +77,7 @@ internal static class AttachmentService
         _ = Task.Run(() => PruneStale());
     }
 
-    /// <summary>Stage dropped/pasted file paths and @-mention each. Any thread; IO stays off the UI thread.</summary>
+    /// <summary>Stage dropped/pasted files or folders and @-mention each. Any thread; IO stays off the UI thread.</summary>
     public static async Task StageFilesAsync(IReadOnlyList<string> paths)
     {
         foreach (var path in paths)
@@ -136,6 +144,68 @@ internal static class AttachmentService
     public static Task ResendAsync(AttachmentItem item) => SendAsync(item, announce: true);
 
     /// <summary>
+    /// @-mention an EXISTING file (optionally a 0-based inclusive line range) through the tray's queue -
+    /// the one mention path for the editor context actions, Add to Chat, and Solution Explorer.
+    ///
+    /// Queued, not fire-and-forget: a mention pushed while no CLI is attached used to vanish, so a
+    /// cold-start action delivered its staged instruction note talking about code that was never
+    /// mentioned (issue #36). Living in the same list as the note also fixes the ordering the note's
+    /// wording depends on ("mentioned alongside this note") - the on-connect flush walks insertion
+    /// order - and earns the chip's click-to-re-mention for free, which matters because the CLI
+    /// silently drops references that arrive mid-turn.
+    ///
+    /// The file is referenced in place (WasCopied=false), so removing the chip never deletes the
+    /// user's source. Returns true when the mention went out immediately.
+    /// </summary>
+    public static async Task<bool> MentionFileAsync(string fullPath, int? lineStart, int? lineEnd)
+    {
+        try
+        {
+            bool isImage = ImageExt.Contains(Path.GetExtension(fullPath));
+            // A whole-file reference gets the usual estimate; a range would only mislead, since we are
+            // pointing at part of the file rather than handing over all of it.
+            long? est = lineStart is null ? EstimateFileTokens(fullPath, isImage) : null;
+            var item = await AddAndSendAsync(fullPath, isImage, wasCopied: false, est, needsTool: false, lineStart, lineEnd);
+            return item.Sent;
+        }
+        catch (Exception e)
+        {
+            Log.Warn($"attach: @-mention for '{Path.GetFileName(fullPath)}' failed: {e.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>Whole-file token estimate for a referenced file (images by pixels, everything else bytes/4).</summary>
+    private static long? EstimateFileTokens(string path, bool isImage)
+    {
+        try
+        {
+            if (isImage) return EstimateImageTokens(path);
+            var len = new FileInfo(path).Length;
+            return len > 0 ? Math.Max(1, len / 4) : null;
+        }
+        catch { return null; }
+    }
+
+    /// <summary>
+    /// Add to the bounded tray. When trimming, drop the oldest ALREADY-SENT item first: the cap must
+    /// never be the thing that swallows a pending mention (that is issue #36 wearing a different hat).
+    /// </summary>
+    private static void AddItem(AttachmentItem item)
+    {
+        lock (Gate)
+        {
+            Items.Add(item);
+            while (Items.Count > MaxItems)
+            {
+                int victim = Items.FindIndex(i => i.Sent);
+                Items.RemoveAt(victim >= 0 ? victim : 0);
+            }
+        }
+        Changed?.Invoke();
+    }
+
+    /// <summary>
     /// Stage a capture the MODEL initiated (the vs_capture_* tools): saved into staging + a visible
     /// panel chip + a feed line, but deliberately NOT at_mentioned - the tool result carries the path
     /// (the model Reads it), so a composer chip would double-deliver. Marked Sent so the on-connect
@@ -191,9 +261,18 @@ internal static class AttachmentService
 
     private static async Task StageOneFileAsync(string path)
     {
+        // A folder is mention-only: folder @-mentions are first-class in the CLI (it walks the tree
+        // itself), so there's nothing to read, copy or estimate here - the reference IS the payload.
+        if (Directory.Exists(path))
+        {
+            await AddAndSendAsync(Path.GetFullPath(path).TrimEnd('\\', '/'),
+                isImage: false, wasCopied: false, estTokens: null, needsTool: false);
+            return;
+        }
+
         if (!File.Exists(path))
         {
-            Log.Warn($"attach: '{path}' doesn't exist (folders aren't supported - drop files).");
+            Log.Warn($"attach: '{path}' doesn't exist.");
             return;
         }
 
@@ -270,25 +349,45 @@ internal static class AttachmentService
         }
     }
 
-    private static async Task AddAndSendAsync(string fullPath, bool isImage, bool wasCopied, long? estTokens, bool needsTool)
+    private static async Task<AttachmentItem> AddAndSendAsync(string fullPath, bool isImage, bool wasCopied,
+                                                              long? estTokens, bool needsTool,
+                                                              int? lineStart = null, int? lineEnd = null)
     {
+        var mentionPath = ToWorkspaceRelative(fullPath) ?? fullPath; // absolute also works (spike-verified)
+
+        // REFERENCES dedupe, copies don't: pointing at the same file+range twice (Solution Explorer's
+        // Add to Chat on a file already added, or a repeated editor action) should re-send that chip
+        // rather than stack a second one. Staged copies are always distinct files, so they never match.
+        if (!wasCopied)
+        {
+            AttachmentItem? existing;
+            lock (Gate)
+                existing = Items.FirstOrDefault(i =>
+                    !i.WasCopied
+                    && string.Equals(i.MentionPath, mentionPath, StringComparison.OrdinalIgnoreCase)
+                    && i.LineStart == lineStart && i.LineEnd == lineEnd);
+            if (existing != null)
+            {
+                await SendAsync(existing, announce: true);
+                return existing;
+            }
+        }
+
         var item = new AttachmentItem
         {
             FullPath = fullPath,
-            MentionPath = ToWorkspaceRelative(fullPath) ?? fullPath, // absolute also works (spike-verified)
+            MentionPath = mentionPath,
             FileName = Path.GetFileName(fullPath),
             IsImage = isImage,
             WasCopied = wasCopied,
             EstTokens = estTokens,
             NeedsTool = needsTool,
+            LineStart = lineStart,
+            LineEnd = lineEnd,
         };
-        lock (Gate)
-        {
-            Items.Add(item);
-            while (Items.Count > MaxItems) Items.RemoveAt(0); // bounded like every other surface
-        }
-        Changed?.Invoke();
+        AddItem(item); // bounded, and never trims a still-pending item ahead of a sent one
         await SendAsync(item, announce: true);
+        return item;
     }
 
     private static async Task SendAsync(AttachmentItem item, bool announce)
@@ -297,17 +396,24 @@ internal static class AttachmentService
         if (server is null || !server.HasConnections)
         {
             if (announce)
-                Log.Info($"attach: staged '{item.FileName}'{TokSuffix(item.EstTokens)} - will @-mention it when Claude connects.");
+                Log.Info($"attach: {(item.WasCopied ? "staged" : "queued")} '{item.FileName}'{item.RangeLabel}{TokSuffix(item.EstTokens)} - will @-mention it when Claude connects.");
             Changed?.Invoke();
             return;
         }
         try
         {
             var @params = new JObject { ["filePath"] = item.MentionPath };
+            // Ranged mentions carry the 0-based inclusive span the protocol expects (keys omitted
+            // entirely for a whole-file reference - see the at_mentioned note in CLAUDE.md).
+            if (item.LineStart is int ls && item.LineEnd is int le)
+            {
+                @params["lineStart"] = ls;
+                @params["lineEnd"] = le;
+            }
             await server.BroadcastNotificationAsync("at_mentioned", @params, CancellationToken.None);
             item.Sent = true;
             if (announce)
-                Log.Info($"attach: @-mentioned '{item.MentionPath}'{TokSuffix(item.EstTokens)} in the Claude composer.");
+                Log.Info($"attach: @-mentioned '{item.MentionPath}'{item.RangeLabel}{TokSuffix(item.EstTokens)} in the Claude composer.");
         }
         catch (Exception e)
         {

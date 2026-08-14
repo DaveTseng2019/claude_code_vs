@@ -190,7 +190,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         _toolsWarningText = new TextBlock { FontSize = 11.5, Opacity = 0.85, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0) };
         warnStack.Children.Add(_toolsWarningText);
         var warnButtons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-        warnButtons.Children.Add(MakeButton(Strings.BtnRelaunch, () => { _ = BridgeStatus.LaunchAction?.Invoke(); }));
+        warnButtons.Children.Add(MakeButton(Strings.BtnRelaunch, () => { _ = BridgeStatus.RelaunchAction?.Invoke(); }));
         warnStack.Children.Add(warnButtons);
         _toolsWarningCard = new Border
         {
@@ -402,7 +402,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         try
         {
             // Run-wild reflects the CLI session's own mode (issue #17 follow-up): while the CLI
-            // pre-approves edits (acceptEdits / bypassPermissions, e.g. shift+tab auto-accept in the
+            // pre-approves edits (acceptEdits / auto / dontAsk / bypassPermissions - e.g. shift+tab in the
             // terminal), the checkbox shows checked and DISABLED - unchecking it could not re-gate
             // edits the user already approved at the CLI level, so the UI must not offer it. When the
             // session mode is default (or no session), the checkbox is the user's own bridge-side
@@ -672,11 +672,11 @@ internal sealed class ClaudeToolWindowControl : UserControl
             var toolNote = it.NeedsTool ? "\n" + Strings.ChipNeedsTool : "";
             var name = new TextBlock
             {
-                Text = (it.IsImage ? "🖼 " : it.NeedsTool ? "🧰 " : "📄 ") + it.FileName + (it.Sent ? "" : "  ⏳"),
+                Text = (it.IsImage ? "🖼 " : it.NeedsTool ? "🧰 " : "📄 ") + it.FileName + it.RangeShort + (it.Sent ? "" : "  ⏳"),
                 FontSize = 11.5,
                 VerticalAlignment = VerticalAlignment.Center,
                 Cursor = Cursors.Hand,
-                ToolTip = it.MentionPath + est + toolNote + "\n" + (it.Sent
+                ToolTip = it.MentionPath + it.RangeLabel + est + toolNote + "\n" + (it.Sent
                     ? Strings.ChipClickRemention
                     : Strings.ChipStagedRetry),
             };

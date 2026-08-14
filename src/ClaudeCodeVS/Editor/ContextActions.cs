@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ClaudeCodeVs.Protocol;
+using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Shell;
 using Task = System.Threading.Tasks.Task;
 
@@ -22,9 +23,57 @@ internal static class ContextActions
 
     public static async Task AddToChatAsync()
     {
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+        if (SelectionService.Current.FilePath is null)
+        {
+            Log.Warn("Add to Chat: no active file.");
+            return;
+        }
+        // Launches like every other action in the flyout (issue #36): before, a cold-start Add to Chat
+        // was the one entry that did nothing at all - no session, no staged item, just a warning.
+        bool launched = EnsureSessionLaunching("Add to Chat");
         await SelectionService.MentionCurrentAsync();
-        FocusClaude(launchedJustNow: false);
+        FocusClaude(launched);
     }
+
+    // ---- Add to Chat (Solution Explorer): the selected files and folders --------------------------
+
+    /// <summary>
+    /// Solution Explorer's "Add to Chat": @-mention every selected file and folder, whole-file (the
+    /// editor flyout above covers line ranges in the open document). Multi-select included, folders
+    /// included - a folder @-mention is first-class in the CLI, which walks the tree itself.
+    /// Routed through the attachment tray rather than raw mentions, so each item gets a chip with
+    /// click-to-re-mention (the CLI drops mentions sent mid-turn) and re-sends itself on connect.
+    /// </summary>
+    public static async Task AddSelectionToChatAsync()
+    {
+        await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(); // hierarchy read is UI-thread
+
+        var paths = (await VS.Solutions.GetActiveItemsAsync())
+            .Where(i => i.Type is SolutionItemType.PhysicalFile or SolutionItemType.PhysicalFolder)
+            .Select(i => i.FullPath)
+            .Where(p => !string.IsNullOrEmpty(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList()!;
+
+        if (paths.Count == 0)
+        {
+            Log.Warn("Add to Chat: the selection has no files or folders.");
+            return;
+        }
+        if (paths.Count > MaxItemsPerAdd)
+        {
+            // The tray only holds 20 chips anyway - mentioning more would push the earlier ones out.
+            Log.Info($"Add to Chat: {paths.Count} items selected - mentioning the first {MaxItemsPerAdd}.");
+            paths = paths.Take(MaxItemsPerAdd).ToList();
+        }
+
+        bool launched = EnsureSessionLaunching("Add to Chat");
+        await Attachments.AttachmentService.StageFilesAsync(paths!);
+        FocusClaude(launched);
+    }
+
+    private const int MaxItemsPerAdd = 20; // == AttachmentService.MaxItems (the tray's chip bound)
 
     // ---- Explain: selection (embedded) or whole file (mentioned) ----------------------------------
 
