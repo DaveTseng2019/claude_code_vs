@@ -618,14 +618,19 @@ internal sealed class BridgeHost : IDisposable
         // user explicitly asked for each time, and upstream allows unlimited concurrent external consoles.
         // The "hooks & tools didn't load" banner's Relaunch button passes forceRelaunch=true to bypass this
         // too - that flow is a deliberate re-pin of a *misconfigured* connected session, not an accidental duplicate.
-        if (!forceExternal && !forceRelaunch)
+        if (!forceExternal)
         {
-            if (_server?.HasConnections == true)
+            // The already-connected guard is for the plain Launch button only. Relaunch bypasses it by
+            // design (its whole job is replacing a connected-but-misconfigured session)…
+            if (!forceRelaunch && _server?.HasConnections == true)
             {
                 Log.Warn("Launch Claude Code: already connected - not opening another terminal.");
                 return;
             }
-            // …and the same for a session that's launched but hasn't finished connecting yet.
+            // …but the cooldown applies to BOTH, because a second click during the connect window piles
+            // up terminals exactly the same way whichever button produced it - and Relaunch is clicked
+            // from a banner that stays up for the seconds the new session needs to connect, so it invites
+            // the double-click this catches.
             if (DateTime.UtcNow - _lastLaunchUtc < LaunchCooldown)
             {
                 Log.Warn("Launch Claude Code: a session is still starting - give it a few seconds.");
