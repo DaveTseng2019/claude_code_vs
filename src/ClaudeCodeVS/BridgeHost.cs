@@ -31,6 +31,15 @@ internal sealed class BridgeHost : IDisposable
     private Debugging.DebuggerDriver? _driver; // Phase 3: drives the debugger (continue/step/breakpoints)
     private Debugging.DataBreakpointBridge? _dataBpBridge; // managed data breakpoints (Concord component bridge)
 
+    // When the last guarded (docked) launch was fired. HasConnections only flips once the CLI's WebSocket
+    // lands, so between the click and that handshake the connection guard alone still lets repeat clicks
+    // pile up terminals; this covers that window. Read/written on the UI thread only (both callers are
+    // menu/button handlers) and before any await, so no synchronization is needed.
+    // notes: a cooldown, not a real "starting" signal - the CLI gives us nothing to await on. Sized to
+    // VsTerminalLauncher's ~10s stall timeout; widen it if cold starts outgrow it.
+    private static readonly TimeSpan LaunchCooldown = TimeSpan.FromSeconds(10);
+    private DateTime _lastLaunchUtc = DateTime.MinValue;
+
     // "Connected but the PULL tools didn't load" detection. The IDE WebSocket auto-connects at CLI
     // startup; if the CLI also loaded our MCP servers, the stdio shim's handshake hits /mcp within a
     // couple seconds. If nothing hits /mcp within this window after a connect, the vs-debug/vs-semantic/
@@ -60,6 +69,7 @@ internal sealed class BridgeHost : IDisposable
         Log.Sink = (level, msg) => { pane.WriteLine(level, msg); Ui.BridgeStatus.Append(level, msg); };
         Ui.BridgeStatus.LaunchAction = () => LaunchClaudeAsync();
         Ui.BridgeStatus.LaunchExternalAction = () => LaunchClaudeAsync(forceExternal: true);
+        Ui.BridgeStatus.RelaunchAction = () => LaunchClaudeAsync(forceRelaunch: true);
         Ui.BridgeStatus.ShowOutputAction = () => pane.Activate(); // panel's "Output" button (UI thread)
         Ui.BridgeStatus.FocusClaudeAction = () => FocusClaudeAsync(); // context actions: focus so Enter sends
         Log.Info("Claude Code bridge starting…");
@@ -591,8 +601,11 @@ internal sealed class BridgeHost : IDisposable
     /// workspace root, so the CLI auto-connects (no /ide) and writes files into the right repo (fixes B2).
     /// Prefers VS's native docked Terminal; <paramref name="forceExternal"/> skips it for users who want
     /// a standalone console window (which, unlike the docked tab, survives closing VS).
+    /// <paramref name="forceRelaunch"/> bypasses the duplicate-terminal guard below - it's the "hooks &amp;
+    /// tools didn't load" banner's Relaunch button deliberately re-pinning a misconfigured session, which
+    /// is exactly the case the guard would otherwise block; it refuses instead when no workspace is open.
     /// </summary>
-    public async Task LaunchClaudeAsync(bool forceExternal = false)
+    public async Task LaunchClaudeAsync(bool forceExternal = false, bool forceRelaunch = false)
     {
         if (_lockfile is null)
         {
@@ -600,11 +613,48 @@ internal sealed class BridgeHost : IDisposable
             return;
         }
 
+        // Guards the plain (docked) Launch button against piling up redundant terminals on repeat clicks
+        // while a session is already connected. External console is exempt - it's a standalone window the
+        // user explicitly asked for each time, and upstream allows unlimited concurrent external consoles.
+        // The "hooks & tools didn't load" banner's Relaunch button passes forceRelaunch=true to bypass this
+        // too - that flow is a deliberate re-pin of a *misconfigured* connected session, not an accidental duplicate.
+        if (!forceExternal)
+        {
+            // The already-connected guard is for the plain Launch button only. Relaunch bypasses it by
+            // design (its whole job is replacing a connected-but-misconfigured session)…
+            if (!forceRelaunch && _server?.HasConnections == true)
+            {
+                Log.Warn("Launch Claude Code: already connected - not opening another terminal.");
+                return;
+            }
+            // …but the cooldown applies to BOTH, because a second click during the connect window piles
+            // up terminals exactly the same way whichever button produced it - and Relaunch is clicked
+            // from a banner that stays up for the seconds the new session needs to connect, so it invites
+            // the double-click this catches.
+            if (DateTime.UtcNow - _lastLaunchUtc < LaunchCooldown)
+            {
+                Log.Warn("Launch Claude Code: a session is still starting - give it a few seconds.");
+                return;
+            }
+            _lastLaunchUtc = DateTime.UtcNow;
+        }
+
         // Reap zombie lockfiles (dead/recycled-PID instances) before launching, so the CLI's /ide and
         // our hooks see only live bridges. Our own lockfile is alive, so it's never reaped.
         Lockfile.ReapStale();
 
         string? workspace = await GetWorkspaceRootAsync();
+
+        // The Relaunch button's whole promise is "pins the right folder" - if VS itself has no
+        // folder/workspace open, there is no right folder to pin, so relaunching would just spawn
+        // another equally-unpinned session that hits the same "hooks didn't load" warning again,
+        // inviting an endless click-relaunch-fail loop. Refuse instead of piling up dead terminals.
+        if (forceRelaunch && string.IsNullOrEmpty(workspace))
+        {
+            Log.Warn("Relaunch Claude Code: no folder/workspace open in Visual Studio - open one " +
+                     "(File > Open > Folder) so the CLI has a project to pin to, then relaunch.");
+            return;
+        }
 
         // Auto-install the single-gate PreToolUse hook into the workspace so accepting/rejecting our
         // diff is the sole edit gate (no terminal prompt). Best-effort; idempotent; safe to re-run.

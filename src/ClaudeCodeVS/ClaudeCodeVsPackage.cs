@@ -111,12 +111,23 @@ public sealed class ClaudeCodeVsPackage : AsyncPackage
 
     private void OnLaunchClaude(object sender, EventArgs e)
     {
+        ThreadHelper.ThrowIfNotOnUIThread();
         var host = _host;
         if (host is null) return;
         JoinableTaskFactory.RunAsync(() => host.LaunchClaudeAsync()).FileAndForget("claudecodevs/launch");
+        // Tools is the only entry a first-run user finds, so show the panel too - one click starts a
+        // session AND surfaces the toggles/stats. After the launch: a panel that fails to open mustn't
+        // take the launch down with it. (The panel's own Launch button doesn't route here.)
+        ShowPanel();
     }
 
     private void OnShowPanel(object sender, EventArgs e)
+    {
+        ThreadHelper.ThrowIfNotOnUIThread();
+        ShowPanel();
+    }
+
+    private void ShowPanel()
     {
         ThreadHelper.ThrowIfNotOnUIThread();
         var window = FindToolWindow(typeof(ClaudeToolWindow), 0, create: true);
