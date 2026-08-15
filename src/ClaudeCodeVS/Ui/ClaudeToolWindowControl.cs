@@ -69,39 +69,40 @@ internal sealed class ClaudeToolWindowControl : UserControl
         SetResourceReference(BackgroundProperty, VsBrushes.ToolWindowBackgroundKey);
         SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey);
         SetResourceReference(TextBlock.ForegroundProperty, VsBrushes.ToolWindowTextKey);
+        FontScale.BindRoot(this);
 
         var root = new Grid { Margin = new Thickness(10, 8, 10, 8) };
         for (int i = 0; i < 7; i++)
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // feed
 
-        // ---- Row 0: header (title + status pill) ----
+        // ---- Row 0: header (status pill) ----
+        // No "Claude Code" text here: the tool window's own Caption (ClaudeToolWindow.cs) already shows
+        // it in the tab/title bar, so a second copy here just duplicated the first line.
         var header = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
-        header.Children.Add(new TextBlock { Text = "Claude Code", FontSize = 15, FontWeight = FontWeights.SemiBold });
 
         var statusRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 0) };
         _dot = new Ellipse { Width = 9, Height = 9, Fill = DotIdle, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
-        _statusLine = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontSize = 12 };
+        _statusLine = Font(new TextBlock { VerticalAlignment = VerticalAlignment.Center }, 1.0);
         statusRow.Children.Add(_dot);
         statusRow.Children.Add(_statusLine);
         header.Children.Add(statusRow);
 
-        _endpointLine = new TextBlock { FontSize = 11, Opacity = 0.65, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 1, 0, 0) };
+        _endpointLine = Font(new TextBlock { Opacity = 0.65, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 1, 0, 0) }, 0.92);
         header.Children.Add(_endpointLine);
         Grid.SetRow(header, 0);
 
         // ---- Row 1: toolbar ----
-        var toolbar = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
-        var right = new StackPanel { Orientation = Orientation.Horizontal };
-        DockPanel.SetDock(right, Dock.Right);
-        right.Children.Add(MakeButton(Strings.BtnClear, () => _feed!.Items.Clear()));
-        right.Children.Add(MakeButton(Strings.BtnOutput, () => { try { BridgeStatus.ShowOutputAction?.Invoke(); } catch { } }));
-
-        var left = new StackPanel { Orientation = Orientation.Horizontal };
-        left.Children.Add(MakeButton(Strings.BtnLaunch, () => { _ = BridgeStatus.LaunchAction?.Invoke(); }));
+        // One flat WrapPanel for all four buttons (no DockPanel right-docking): docking Clear/Output to
+        // the right pre-claims width, which clipped the Launch buttons mid-text at narrow panel widths.
+        // Wrapping keeps every button whole and reachable at any width; right-alignment wasn't worth that.
+        var toolbar = new WrapPanel { Margin = new Thickness(0) };
+        toolbar.Children.Add(MakeButton(Strings.BtnLaunch, () => { _ = BridgeStatus.LaunchAction?.Invoke(); }));
         var launchExternal = MakeButton(Strings.BtnExternalConsole, () => { _ = BridgeStatus.LaunchExternalAction?.Invoke(); });
         launchExternal.ToolTip = Strings.TipExternalConsole;
-        left.Children.Add(launchExternal);
+        toolbar.Children.Add(launchExternal);
+        toolbar.Children.Add(MakeButton(Strings.BtnClear, () => _feed!.Items.Clear()));
+        toolbar.Children.Add(MakeButton(Strings.BtnOutput, () => { try { BridgeStatus.ShowOutputAction?.Invoke(); } catch { } }));
 
         // The toggles get their own WRAPPING row: four checkboxes stopped fitting beside the buttons at
         // a typically-docked panel width (they were simply invisible until the panel was widened), and a
@@ -165,11 +166,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         _notify.SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey);
         toggles.Children.Add(_notify);
 
-        toolbar.Children.Add(right);
-        toolbar.Children.Add(left);
-
         var toolbarStack = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
-        toolbar.Margin = new Thickness(0);
         toolbarStack.Children.Add(toolbar);
         toolbarStack.Children.Add(toggles);
         Grid.SetRow(toolbarStack, 1);
@@ -178,16 +175,15 @@ internal sealed class ClaudeToolWindowControl : UserControl
         // Surfaces the otherwise-silent gap where the IDE WebSocket connected but vs-debug/vs-semantic/
         // tests never loaded (Claude launched outside the workspace, or project servers unapproved).
         var warnStack = new StackPanel();
-        _toolsWarningTitle = new TextBlock
+        _toolsWarningTitle = Font(new TextBlock
         {
             Text = Strings.BannerConfigTitle,
-            FontSize = 12,
             FontWeight = FontWeights.SemiBold,
             Foreground = WarnText,
             TextWrapping = TextWrapping.Wrap,
-        };
+        }, 1.0);
         warnStack.Children.Add(_toolsWarningTitle);
-        _toolsWarningText = new TextBlock { FontSize = 11.5, Opacity = 0.85, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0) };
+        _toolsWarningText = Font(new TextBlock { Opacity = 0.85, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0) }, 0.96);
         warnStack.Children.Add(_toolsWarningText);
         var warnButtons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
         warnButtons.Children.Add(MakeButton(Strings.BtnRelaunch, () => { _ = BridgeStatus.RelaunchAction?.Invoke(); }));
@@ -206,14 +202,14 @@ internal sealed class ClaudeToolWindowControl : UserControl
         Grid.SetRow(_toolsWarningCard, 2);
 
         // ---- Row 3: stats card ----
-        _editsLine = new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap };
-        _debugLine = new TextBlock { FontSize = 12, Opacity = 0.9, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) };
-        _latestLine = new TextBlock { FontSize = 12, Opacity = 0.9, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) };
-        _sessionLine = new TextBlock { FontSize = 12, Opacity = 0.9, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) };
+        _editsLine = Font(new TextBlock { TextWrapping = TextWrapping.Wrap }, 1.0);
+        _debugLine = Font(new TextBlock { Opacity = 0.9, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) }, 1.0);
+        _latestLine = Font(new TextBlock { Opacity = 0.9, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) }, 1.0);
+        _sessionLine = Font(new TextBlock { Opacity = 0.9, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) }, 1.0);
 
         // Cost is an estimate, so it's gated behind a toggle rather than shown by default.
         _costButton = MakeButton(Strings.BtnShowCost, ToggleCost);
-        _costText = new TextBlock { FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Opacity = 0.9, Margin = new Thickness(8, 0, 0, 0), Visibility = Visibility.Collapsed };
+        _costText = Font(new TextBlock { VerticalAlignment = VerticalAlignment.Center, Opacity = 0.9, Margin = new Thickness(8, 0, 0, 0), Visibility = Visibility.Collapsed }, 1.0);
         _costRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0), Visibility = Visibility.Collapsed };
         _costRow.Children.Add(_costButton);
         _costRow.Children.Add(_costText);
@@ -235,7 +231,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         Grid.SetRow(statsCard, 3);
 
         // ---- Row 4: pending diffs (collapsed when none) ----
-        _pendingText = new TextBlock { FontSize = 12, TextWrapping = TextWrapping.Wrap };
+        _pendingText = Font(new TextBlock { TextWrapping = TextWrapping.Wrap }, 1.0);
         _pendingCard = new Border
         {
             Background = Chip,
@@ -251,13 +247,12 @@ internal sealed class ClaudeToolWindowControl : UserControl
         // Screenshots can't be pasted into the CLI on Windows (open upstream gap), so the panel is the
         // paste/drop point: stage the file, then push an at_mentioned so the reference lands in the
         // CLI's composer with no path typing. Chips show what's staged; × removes, click re-mentions.
-        var attachHint = new TextBlock
+        var attachHint = Font(new TextBlock
         {
             Text = Strings.AttachHint,
-            FontSize = 11.5,
             Opacity = 0.75,
             VerticalAlignment = VerticalAlignment.Center,
-        };
+        }, 0.96);
         var attachHeader = new StackPanel { Orientation = Orientation.Horizontal };
         attachHeader.Children.Add(attachHint);
         var pasteBtn = MakeButton(Strings.BtnPaste, PasteFromClipboard);
@@ -272,14 +267,13 @@ internal sealed class ClaudeToolWindowControl : UserControl
         _attachClear.Visibility = Visibility.Collapsed;
         attachHeader.Children.Add(_attachClear);
         // A live "what will this cost" readout for the staged set - same estimate language as the cost row.
-        _attachSummary = new TextBlock
+        _attachSummary = Font(new TextBlock
         {
-            FontSize = 11.5,
             Opacity = 0.65,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(2, 0, 0, 0),
             Visibility = Visibility.Collapsed,
-        };
+        }, 0.96);
         _attachSummary.SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey);
         attachHeader.Children.Add(_attachSummary);
 
@@ -305,7 +299,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         CommandBindings.Add(new CommandBinding(ApplicationCommands.Paste, (s, e) => PasteFromClipboard()));
 
         // ---- Row 6: feed label ----
-        var feedLabel = new TextBlock { Text = Strings.FeedLabel, FontSize = 10, FontWeight = FontWeights.SemiBold, Opacity = 0.55, Margin = new Thickness(2, 0, 0, 4) };
+        var feedLabel = Font(new TextBlock { Text = Strings.FeedLabel, FontWeight = FontWeights.SemiBold, Opacity = 0.55, Margin = new Thickness(2, 0, 0, 4) }, 0.83);
         Grid.SetRow(feedLabel, 6);
 
         // ---- Row 7: curated activity feed ----
@@ -386,7 +380,7 @@ internal sealed class ClaudeToolWindowControl : UserControl
         // Raw JSON frames and notification noise stay in the Output pane; keep the panel readable.
         if (level == LogLevel.Frame || level == LogLevel.Event) return;
 
-        var tb = new TextBlock { Text = text, FontFamily = Mono, FontSize = 11.5, TextWrapping = TextWrapping.NoWrap };
+        var tb = Font(new TextBlock { Text = text, FontFamily = Mono, TextWrapping = TextWrapping.NoWrap }, 0.96);
         if (level == LogLevel.Error) tb.Foreground = ErrText;
         else if (level == LogLevel.Warn) tb.Foreground = WarnText;
         else tb.SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey);
@@ -670,16 +664,15 @@ internal sealed class ClaudeToolWindowControl : UserControl
             var it = item; // capture per chip
             var est = it.EstTokens is long e ? "\n" + string.Format(Strings.ChipEstimateFormat, Tok(e)) : "";
             var toolNote = it.NeedsTool ? "\n" + Strings.ChipNeedsTool : "";
-            var name = new TextBlock
+            var name = Font(new TextBlock
             {
                 Text = (it.IsImage ? "🖼 " : it.NeedsTool ? "🧰 " : "📄 ") + it.FileName + it.RangeShort + (it.Sent ? "" : "  ⏳"),
-                FontSize = 11.5,
                 VerticalAlignment = VerticalAlignment.Center,
                 Cursor = Cursors.Hand,
                 ToolTip = it.MentionPath + it.RangeLabel + est + toolNote + "\n" + (it.Sent
                     ? Strings.ChipClickRemention
                     : Strings.ChipStagedRetry),
-            };
+            }, 0.96);
             name.SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey);
             name.MouseLeftButtonUp += (s, e) => _ = Task.Run(async () =>
             {
@@ -687,16 +680,15 @@ internal sealed class ClaudeToolWindowControl : UserControl
                 FocusClaude(); // chip click = explicit re-send intent
             });
 
-            var close = new TextBlock
+            var close = Font(new TextBlock
             {
                 Text = "✕",
-                FontSize = 11.5,
                 Margin = new Thickness(7, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center,
                 Cursor = Cursors.Hand,
                 Opacity = 0.65,
                 ToolTip = it.WasCopied ? Strings.ChipRemoveCopied : Strings.ChipRemove,
-            };
+            }, 0.96);
             close.SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey);
             close.MouseLeftButtonUp += (s, e) => Attachments.AttachmentService.Remove(it);
 
@@ -741,6 +733,10 @@ internal sealed class ClaudeToolWindowControl : UserControl
         return model;
     }
 
+    /// <summary>Scales an element's FontSize relative to VS's Environment Font size (see <see cref="FontScale"/>).</summary>
+    private static T Font<T>(T el, double ratio) where T : FrameworkElement
+        => FontScale.Bind(el, typeof(ClaudeToolWindowControl), ratio);
+
     /// <summary>A flat, non-selectable list item (so the feed reads like a log, not a selectable list).</summary>
     private static Style FlatItemStyle()
     {
@@ -757,16 +753,15 @@ internal sealed class ClaudeToolWindowControl : UserControl
     /// <summary>A flat, theme-aware button: a rounded chip that lightens on hover, themed text.</summary>
     private static Button MakeButton(string text, Action onClick)
     {
-        var b = new Button
+        var b = Font(new Button
         {
             Content = text,
             Margin = new Thickness(0, 0, 6, 0),
             Padding = new Thickness(10, 3, 10, 3),
-            FontSize = 12,
             Cursor = Cursors.Hand,
             Background = Chip,
             BorderThickness = new Thickness(0),
-        };
+        }, 1.0);
         b.SetResourceReference(ForegroundProperty, VsBrushes.ToolWindowTextKey);
 
         var border = new System.Windows.FrameworkElementFactory(typeof(Border));
