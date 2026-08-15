@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.19.0 - 2026-08-14
+
+A community release: four of these six changes are PRs from [@DaveTseng2019](https://github.com/DaveTseng2019), and a fifth came from his bug report.
+
+### Features
+
+- **Add to Chat in Solution Explorer** ([#35](https://github.com/firish/claude_code_vs/pull/35), closes [#30](https://github.com/firish/claude_code_vs/issues/30)). Select any number of files - or folders, or a selection spanning projects - right-click, and each is `@`-mentioned whole-file. Folders are mentioned as themselves rather than expanded, so `@Rules` costs one reference and the CLI walks the tree. Every reference arrives as a tray chip with its token estimate and click-to-re-mention.
+- **The panel follows VS's Environment Font** ([#25](https://github.com/firish/claude_code_vs/pull/25)). Font sizes were hardcoded, so the panel ignored Tools > Options > Environment > Fonts and Colors and stayed tiny (or huge) for anyone who had scaled the IDE. Every panel font, and the Compose dialog, now derives from the shell's size and updates live. The redundant "Claude Code" heading inside the panel is gone (the tool window's own tab already says it), and the toolbar wraps instead of clipping Launch mid-text at narrow widths.
+
+### Fixes
+
+- **Launch stops stacking terminals** ([#26](https://github.com/firish/claude_code_vs/pull/26)). Pressing Launch with a session already connected opened another terminal and another `claude` process every time; it now no-ops with a feed line, and a brief cooldown covers the seconds between the click and the WebSocket handshake, when a connection check alone still lets a second click through. The "hooks & tools didn't load" banner's **Relaunch** bypasses that guard by design, but refuses when no folder is open - previously it spawned another equally-unpinned session that tripped the same banner, inviting an endless click-relaunch loop. **External console** is exempt, and **Tools > Launch Claude Code** now opens the panel too.
+- **Context-action `@`-mentions survive a cold start** ([#36](https://github.com/firish/claude_code_vs/issues/36)). With no session running, a right-click action's staged note was delivered on connect but the `@`-mention beside it was dropped - so Claude received "explain this file" with no file attached. Mentions now go through the attachment tray's queue, which means they also survive the CLI's known habit of dropping references sent mid-turn (click the chip to re-send), and **Add to Chat** launches a session like its siblings instead of doing nothing.
+- **The attach tray resets when the open solution changes** ([#37](https://github.com/firish/claude_code_vs/pull/37)). Chips are workspace-scoped - a workspace-relative mention path and a staged copy under that workspace - so carrying them into the next solution pushed references the new session could not resolve, or worse, resolved to a same-named file. Same semantics as the panel's Clear button: staged copies are deleted, files referenced in place are only unlisted.
+- **The "tools didn't load" banner no longer false-alarms on a slow start.** The MCP servers reach the bridge through a PowerShell shim, so their handshake waits on two cold PowerShell starts; the 10s grace window was inside the range an ordinary cold start takes, which raised the banner and then silently retracted it - leaving a scary, no-longer-true line in the activity feed. The window is now 30s, and a late handshake says so explicitly instead of vanishing without comment.
+
 ## 1.18.2 - 2026-08-14
 
 ### Fixes
