@@ -46,7 +46,13 @@ internal sealed class BridgeHost : IDisposable
     // test tools aren't available (Claude was launched outside the workspace, or the project servers
     // weren't approved) - we raise a panel banner instead of failing silently. _mcpEverSeen is sticky
     // for the bridge's life so a WS reconnect of an already-proven session never re-warns.
-    private static readonly TimeSpan McpGraceWindow = TimeSpan.FromSeconds(10);
+    // 30s, not 10: the MCP servers reach us through vs-mcp-shim.ps1, so the handshake waits on TWO cold
+    // PowerShell 5.1 starts (vs-debug + vs-semantic) behind whatever the machine's AV does to script
+    // launches. 10s was tight enough that an ordinary cold start could raise the banner and then have it
+    // silently retracted seconds later by the late handshake - leaving a scary, no-longer-true line in
+    // the feed. A session that genuinely never loaded the config never resolves, so waiting longer only
+    // costs the warning some latency in the case where it is real.
+    private static readonly TimeSpan McpGraceWindow = TimeSpan.FromSeconds(30);
     private readonly object _mcpGate = new();
     private CancellationTokenSource? _mcpGraceCts;
     private volatile bool _mcpEverSeen;
@@ -458,12 +464,22 @@ internal sealed class BridgeHost : IDisposable
     private void OnMcpActivity()
     {
         if (_mcpEverSeen) return; // steady-state fast path (fires on every MCP request)
+        bool retracting;
         lock (_mcpGate)
         {
+            if (_mcpEverSeen) return; // another request won the race while we waited on the lock
             _mcpEverSeen = true;
             _mcpGraceCts?.Cancel();
+            retracting = Ui.BridgeStatus.ToolsWarning;
             Ui.BridgeStatus.SetToolsWarning(false);
         }
+        // Say so when a late handshake stands the banner down. The banner disappearing on its own is
+        // fine; leaving the warning's feed line as the last word on the subject is not - the user would
+        // keep reading "this session never loaded the workspace's .claude configuration" long after it
+        // stopped being true (logged outside the lock: the sink fans out to the panel).
+        if (retracting)
+            Log.Info("vs-debug / vs-semantic connected after all - the warning above no longer applies " +
+                     "(the MCP servers just took a while to start).");
     }
 
     private static IEnumerable<IIdeTool> BuildTools(DiffDecisions decisions)
