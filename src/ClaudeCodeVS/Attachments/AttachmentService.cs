@@ -18,6 +18,8 @@ internal sealed class AttachmentItem
     public string FileName = "";
     public bool IsImage;
     public bool WasCopied;          // true = the file is OURS (a staged copy/paste) - safe to delete on remove
+    public string SourcePath = "";  // where it CAME FROM: the user's original for a staged copy, == FullPath otherwise
+    public DateTime SourceStamp;    // that original's last-write time (UTC); default when there is no source file
     public bool Sent;               // at_mentioned delivered at least once while the CLI was connected
     public long? EstTokens;         // what reading this will roughly cost: (w*h)/750 for images, bytes/4 for text; null = unknown (PDF, undecodable)
     public bool NeedsTool;          // not a format Read parses (xlsx/mp4/zip/...) - Claude gets the path and reaches for a script/tool
@@ -225,13 +227,10 @@ internal static class AttachmentService
             WasCopied = true,
             EstTokens = EstimatePngTokens(png),
             Sent = true, // never auto-mentioned: the capture tool's result carries the path
+            // SourcePath deliberately left empty: a capture has no original file, so FindBySource can
+            // never match it (and two screenshots of the same window are genuinely different content).
         };
-        lock (Gate)
-        {
-            Items.Add(item);
-            while (Items.Count > MaxItems) Items.RemoveAt(0);
-        }
-        Changed?.Invoke();
+        AddItem(item); // bounded, and never trims a still-pending mention ahead of a sent one
         return item;
     }
 
@@ -259,6 +258,29 @@ internal static class AttachmentService
 
     // -------------------------------------------------------------------------------------------
 
+    /// <summary>
+    /// The already-staged chip for this ORIGINAL file, or null. Unchanged-since-we-staged-it is part of
+    /// the match: a file edited after staging has to come in as a new attachment, since the staged copy
+    /// froze the old bytes. Unreadable timestamp (deleted, locked) = no match, so we stage rather than
+    /// silently re-mention something stale.
+    /// </summary>
+    private static AttachmentItem? FindBySource(string sourcePath)
+    {
+        var stamp = LastWriteUtc(sourcePath);
+        if (stamp == default) return null;
+        lock (Gate)
+            return Items.FirstOrDefault(i =>
+                string.Equals(i.SourcePath, sourcePath, StringComparison.OrdinalIgnoreCase)
+                && i.SourceStamp == stamp
+                && i.LineStart is null && i.LineEnd is null); // a ranged mention is a different attachment
+    }
+
+    private static DateTime LastWriteUtc(string path)
+    {
+        try { return File.Exists(path) ? File.GetLastWriteTimeUtc(path) : default; }
+        catch { return default; }
+    }
+
     private static async Task StageOneFileAsync(string path)
     {
         // A folder is mention-only: folder @-mentions are first-class in the CLI (it walks the tree
@@ -279,6 +301,18 @@ internal static class AttachmentService
         var name = Path.GetFileName(path);
         var ext = Path.GetExtension(path);
         var size = new FileInfo(path).Length;
+        string source = Path.GetFullPath(path);
+
+        // Dropping/pasting the SAME file twice used to stack a second chip whenever the file lived
+        // outside the workspace: those go in as staged copies, and the reference dedupe further down
+        // only matches references. Match on the ORIGINAL path + its timestamp instead, ahead of any
+        // copying, so a repeat re-mentions the chip we already have - while a file EDITED since we
+        // staged it still comes in fresh, which is the whole point of attaching it again.
+        if (FindBySource(source) is AttachmentItem twin)
+        {
+            await SendAsync(twin, announce: true);
+            return;
+        }
 
         // BMP is the one format we can FIX rather than label: Read doesn't parse it, but WPF does,
         // so a vision-ready PNG copy goes into staging instead.
@@ -290,7 +324,7 @@ internal static class AttachmentService
         bool isText = !isImage && !isPdf && !LooksBinary(path);
         bool needsTool = !isImage && !isPdf && !isText; // xlsx/mp4/zip/... - path still helps, Read doesn't
 
-        string full = Path.GetFullPath(path);
+        string full = source;
         bool copied = false;
 
         // In-workspace files are referenced in place; others are copied into staging so the CLI reads
@@ -314,7 +348,7 @@ internal static class AttachmentService
         long? est = isImage && size <= MaxImageBytes ? EstimateImageTokens(full)
                   : isText ? Math.Max(1, size / 4)
                   : null;
-        await AddAndSendAsync(full, isImage, copied, est, needsTool);
+        await AddAndSendAsync(full, isImage, copied, est, needsTool, sourcePath: source);
 
         if (needsTool)
             Log.Info($"attach: '{name}' isn't a format Claude reads directly - it has the path and will use a script/tool (PowerShell, ffmpeg, ...) on it.");
@@ -339,7 +373,8 @@ internal static class AttachmentService
             var dest = UniquePath(EnsureStagingDir(), Path.GetFileNameWithoutExtension(path) + ".png");
             File.WriteAllBytes(dest, png);
             Log.Info($"attach: transcoded '{Path.GetFileName(path)}' to PNG (Claude's vision doesn't take BMP).");
-            await AddAndSendAsync(dest, isImage: true, wasCopied: true, EstimatePngTokens(png), needsTool: false);
+            await AddAndSendAsync(dest, isImage: true, wasCopied: true, EstimatePngTokens(png), needsTool: false,
+                                  sourcePath: Path.GetFullPath(path)); // the .bmp, so a re-drop finds this PNG
             return true;
         }
         catch (Exception e)
@@ -351,7 +386,8 @@ internal static class AttachmentService
 
     private static async Task<AttachmentItem> AddAndSendAsync(string fullPath, bool isImage, bool wasCopied,
                                                               long? estTokens, bool needsTool,
-                                                              int? lineStart = null, int? lineEnd = null)
+                                                              int? lineStart = null, int? lineEnd = null,
+                                                              string? sourcePath = null)
     {
         var mentionPath = ToWorkspaceRelative(fullPath) ?? fullPath; // absolute also works (spike-verified)
 
@@ -380,6 +416,8 @@ internal static class AttachmentService
             FileName = Path.GetFileName(fullPath),
             IsImage = isImage,
             WasCopied = wasCopied,
+            SourcePath = sourcePath ?? fullPath,
+            SourceStamp = LastWriteUtc(sourcePath ?? fullPath),
             EstTokens = estTokens,
             NeedsTool = needsTool,
             LineStart = lineStart,
