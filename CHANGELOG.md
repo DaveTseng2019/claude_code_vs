@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.19.1 - 2026-08-20
+
+Two attach-tray fixes, both from [@DaveTseng2019](https://github.com/DaveTseng2019) auditing the 1.19.0 panel.
+
+### Fixes
+
+- **Re-attaching the same file stops stacking duplicate chips** ([#40](https://github.com/firish/claude_code_vs/pull/40)). Dropping or pasting a file from *outside* the workspace twice staged a second copy (`foo.png`, then `foo-2.png`): two files in `.claude\attachments`, two `@`-mentions, two of the tray's twenty slots. The tray deduped references but not staged copies. Attachments now match on the original file's path **and its last-write time**, checked before any copying, so a repeat re-mentions the chip you already have - while a file *edited* since it was staged still comes in as a new attachment, since the staged copy froze the old bytes. Re-dropping a `.bmp` also finds the PNG transcoded the first time instead of transcoding it again. Clipboard images and composer text still never dedupe: with no source file, each one is genuinely new content.
+- **Compose stays reachable in a narrow panel** ([#39](https://github.com/firish/claude_code_vs/pull/39)). The attach card's header row did not wrap, so at a docked panel width the hint plus Paste / Compose / Clear overflowed the card - the panel grew a horizontal scrollbar and **Compose** sat half outside it, clickable only if you thought to scroll sideways. The row now wraps like the toolbar above it, keeping every button whole at any width.
+- **A screenshot can no longer evict a pending attachment.** The capture path still used the old tray-trim, so a capture arriving at a full tray could drop a mention that had not been delivered yet.
+
 ## 1.19.0 - 2026-08-14
 
 A community release: four of these six changes are PRs from [@DaveTseng2019](https://github.com/DaveTseng2019), and a fifth came from his bug report.
