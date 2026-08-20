@@ -227,13 +227,10 @@ internal static class AttachmentService
             WasCopied = true,
             EstTokens = EstimatePngTokens(png),
             Sent = true, // never auto-mentioned: the capture tool's result carries the path
+            // SourcePath deliberately left empty: a capture has no original file, so FindBySource can
+            // never match it (and two screenshots of the same window are genuinely different content).
         };
-        lock (Gate)
-        {
-            Items.Add(item);
-            while (Items.Count > MaxItems) Items.RemoveAt(0);
-        }
-        Changed?.Invoke();
+        AddItem(item); // bounded, and never trims a still-pending mention ahead of a sent one
         return item;
     }
 
