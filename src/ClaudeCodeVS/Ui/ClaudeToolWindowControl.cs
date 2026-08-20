@@ -253,7 +253,11 @@ internal sealed class ClaudeToolWindowControl : UserControl
             Opacity = 0.75,
             VerticalAlignment = VerticalAlignment.Center,
         }, 0.96);
-        var attachHeader = new StackPanel { Orientation = Orientation.Horizontal };
+        // WrapPanel, not a horizontal StackPanel, for the same reason as the toolbar above: at a docked
+        // panel width the hint plus Paste/Compose/Clear overflow, and a StackPanel just runs off the edge
+        // (the card grew a horizontal scrollbar and Compose sat half outside it). Wrapping keeps each
+        // button whole and clickable at any width.
+        var attachHeader = new WrapPanel();
         attachHeader.Children.Add(attachHint);
         var pasteBtn = MakeButton(Strings.BtnPaste, PasteFromClipboard);
         pasteBtn.Margin = new Thickness(6, 0, 6, 0);
